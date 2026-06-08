@@ -1508,17 +1508,31 @@ async function syncToSheet() {
   btn.textContent = '⏳ Syncing…';
   btn.disabled = true;
   try {
-    // GAS POST loses CORS headers on its internal redirect, so use no-cors.
-    // The write still succeeds — we just can't read the response back.
-    await fetch(state.scriptUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify(buildSyncPayload())
-    });
-    state.lastSync = new Date().toISOString();
-    saveState();
-    updateSyncStatus();
-    showToast('✅ Synced to Google Sheets!', 2500);
+    // GAS POST redirect converts to GET and drops the body (HTTP 302 behavior).
+    // Fix: send as GET with ?payload=... — doGet handles it server-side.
+    // Only send today + settings to stay well under URL length limits.
+    const today = getToday();
+    const payload = {
+      action: 'sync',
+      tracking: state.tracking[today] ? { [today]: state.tracking[today] } : {},
+      bfLog: state.bfLog.slice(-5),   // last 5 entries is plenty
+      settings: {
+        bfGoal:     state.bfGoal,
+        bodyWeight: state.bodyWeight,
+        phase:      state.phase
+      }
+    };
+    const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.success) {
+      state.lastSync = json.syncedAt || new Date().toISOString();
+      saveState();
+      updateSyncStatus();
+      showToast('✅ Synced to Google Sheets!', 2500);
+    } else {
+      showToast('⚠️ Sync error: ' + (json.error || 'Unknown'), 3000);
+    }
   } catch (err) {
     showToast('❌ Network error — check URL & connection', 3000);
   } finally {
