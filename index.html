@@ -1508,19 +1508,17 @@ async function syncToSheet() {
   btn.textContent = '⏳ Syncing…';
   btn.disabled = true;
   try {
-    const resp = await fetch(state.scriptUrl, {
+    // GAS POST loses CORS headers on its internal redirect, so use no-cors.
+    // The write still succeeds — we just can't read the response back.
+    await fetch(state.scriptUrl, {
       method: 'POST',
+      mode: 'no-cors',
       body: JSON.stringify(buildSyncPayload())
     });
-    const json = await resp.json();
-    if (json.success) {
-      state.lastSync = json.syncedAt || new Date().toISOString();
-      saveState();
-      updateSyncStatus();
-      showToast('✅ Synced to Google Sheets!', 2500);
-    } else {
-      showToast('⚠️ Sync error: ' + (json.error || 'Unknown'), 3000);
-    }
+    state.lastSync = new Date().toISOString();
+    saveState();
+    updateSyncStatus();
+    showToast('✅ Synced to Google Sheets!', 2500);
   } catch (err) {
     showToast('❌ Network error — check URL & connection', 3000);
   } finally {
@@ -1536,7 +1534,7 @@ async function loadFromSheet() {
   btn.textContent = '⏳ Loading…';
   btn.disabled = true;
   try {
-    const resp = await fetch(state.scriptUrl + '?action=getData');
+    const resp = await fetch(state.scriptUrl, { mode: 'cors' });
     const json = await resp.json();
 
     // Merge tracking (sheet wins for existing dates)
