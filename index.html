@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#e53935">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="P90X Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>P90X Level II Tracker</title>
+<style>
+  :root {
+    --red: #e53935;
+    --red-dark: #b71c1c;
+    --orange: #ff6f00;
+    --bg: #0d0d0d;
+    --card: #1a1a1a;
+    --card2: #222;
+    --border: #333;
+    --text: #f5f5f5;
+    --muted: #888;
+    --green: #43a047;
+    --blue: #1e88e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+
+  /* HEADER */
+  #header {
+    background: linear-gradient(135deg, #1a0000, #2d0000);
+    border-bottom: 2px solid var(--red);
+    padding: 12px 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(229,57,53,0.3);
+  }
+  #header h1 { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px rgba(229,57,53,0.5); }
+  #header h1 span { color: var(--red); }
+  #phase-selector { display: flex; gap: 4px; }
+  .phase-btn {
+    padding: 4px 9px; font-size: 10px; font-weight: 700; border-radius: 12px;
+    border: 1px solid var(--border); background: #2a2a2a; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .phase-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
+  .date-label { font-size: 11px; color: var(--muted); text-align: right; }
+
+  /* SCROLL CONTAINER */
+  #app { position: fixed; top: 62px; bottom: 64px; left: 0; right: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .tab-panel { display: none; padding: 12px; min-height: 100%; }
+  .tab-panel.active { display: block; }
+
+  /* BOTTOM NAV */
+  #bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+    background: #111; border-top: 1px solid var(--border);
+    display: flex; z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; cursor: pointer; border: none; background: none; color: var(--muted);
+    font-size: 9px; font-weight: 600; letter-spacing: 0.5px; transition: color 0.2s;
+  }
+  .nav-btn .icon { font-size: 22px; line-height: 1; }
+  .nav-btn.active { color: var(--red); }
+  .nav-btn.active .icon { filter: drop-shadow(0 0 4px rgba(229,57,53,0.6)); }
+
+  /* CARDS */
+  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .card-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .section-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .section-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+  /* PROGRESS RINGS */
+  .rings-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+  .ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 60px; }
+  .ring-wrap canvas { width: 60px; height: 60px; }
+  .ring-label { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-align: center; }
+  .ring-count { font-size: 11px; font-weight: 800; color: var(--text); text-align: center; }
+
+  /* FOOD CHECKLIST */
+  .food-group { margin-bottom: 10px; }
+  .food-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: var(--card2); border-radius: 10px;
+    margin-bottom: 1px; cursor: pointer;
+  }
+  .fg-left { display: flex; align-items: center; gap: 10px; }
+  .fg-icon { font-size: 20px; }
+  .fg-name { font-size: 14px; font-weight: 700; }
+  .fg-cal { font-size: 11px; color: var(--muted); }
+  .fg-counter { display: flex; align-items: center; gap: 6px; }
+  .count-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: none; font-size: 18px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .count-btn.minus { background: #2a2a2a; color: var(--muted); }
+  .count-btn.minus:active { background: #3a3a3a; }
+  .count-btn.plus { background: var(--red); color: #fff; }
+  .count-btn.plus:active { background: var(--red-dark); transform: scale(0.93); }
+  .count-display {
+    min-width: 40px; text-align: center; font-size: 14px; font-weight: 800;
+  }
+  .count-display.done { color: var(--green); }
+  .count-display.over { color: var(--orange); }
+
+  /* PROGRESS BAR */
+  .progress-track { height: 4px; background: #2a2a2a; border-radius: 2px; margin-top: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  /* DAILY SUMMARY */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .summary-item { background: var(--card2); border-radius: 8px; padding: 10px 12px; }
+  .summary-item label { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .summary-item .val { font-size: 20px; font-weight: 900; color: var(--text); line-height: 1.1; }
+  .summary-item .val.good { color: var(--green); }
+  .summary-item .subval { font-size: 11px; color: var(--muted); }
+
+  /* FOOD GUIDE */
+  .food-cat { margin-bottom: 12px; }
+  .food-cat-title {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: var(--card2); border-radius: 10px 10px 0 0;
+    font-size: 13px; font-weight: 800; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .food-cat-title .cat-icon { font-size: 18px; }
+  .food-cat-title .cat-cal { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--orange); }
+  .food-cat-title .chevron { font-size: 12px; color: var(--muted); transition: transform 0.2s; }
+  .food-cat-title.open .chevron { transform: rotate(180deg); }
+  .food-list { background: var(--card2); border-radius: 0 0 10px 10px; overflow: hidden; display: none; }
+  .food-list.open { display: block; }
+  .food-item { padding: 8px 14px; border-bottom: 1px solid #1e1e1e; font-size: 13px; color: #ccc; display: flex; align-items: center; gap: 6px; }
+  .food-item:last-child { border-bottom: none; }
+  .food-item::before { content: '•'; color: var(--red); font-size: 16px; }
+
+  /* MEAL PLANS */
+  .day-plan { background: var(--card2); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .day-plan h4 { font-size: 13px; font-weight: 800; color: var(--red); margin-bottom: 8px; }
+  .meal-line { font-size: 12px; color: #ccc; padding: 3px 0; border-bottom: 1px solid #1e1e1e; }
+  .meal-line:last-child { border-bottom: none; }
+  .meal-type { font-weight: 700; color: var(--text); }
+
+  /* BODY FAT */
+  .bf-hero { text-align: center; padding: 20px; }
+  .bf-current { font-size: 56px; font-weight: 900; color: var(--red); line-height: 1; }
+  .bf-current span { font-size: 24px; color: var(--muted); }
+  .bf-goal-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+  .bf-goal-label { font-size: 12px; color: var(--muted); }
+  .bf-goal-val { font-size: 18px; font-weight: 800; color: var(--green); }
+  .bf-delta { font-size: 13px; font-weight: 700; }
+  .bf-delta.pos { color: var(--red); }
+  .bf-delta.neg { color: var(--green); }
+
+  .input-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px; }
+  .input-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .input-group label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; }
+  input[type="number"], input[type="date"] {
+    width: 100%; padding: 12px; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 15px; font-weight: 700;
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type="number"]:focus, input[type="date"]:focus { outline: none; border-color: var(--red); }
+
+  .btn-primary {
+    width: 100%; padding: 14px; background: var(--red); border: none; border-radius: 10px;
+    color: #fff; font-size: 15px; font-weight: 800; letter-spacing: 0.5px;
+    cursor: pointer; transition: all 0.15s; margin-top: 4px;
+  }
+  .btn-primary:active { background: var(--red-dark); transform: scale(0.98); }
+  .btn-secondary {
+    width: 100%; padding: 12px; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s; margin-top: 8px;
+  }
+  .btn-secondary:active { background: #2a2a2a; }
+
+  .bf-log-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .bf-log-table th { color: var(--muted); font-size: 10px; letter-spacing: 1px; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+  .bf-log-table td { padding: 8px 8px; border-bottom: 1px solid #1e1e1e; color: var(--text); }
+  .bf-log-table tr:last-child td { border-bottom: none; }
+  .bf-log-table td.change.pos { color: var(--red); }
+  .bf-log-table td.change.neg { color: var(--green); }
+  .delete-row-btn { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 2px 4px; }
+
+  canvas#bf-chart { width: 100% !important; max-height: 180px; }
+
+  /* COACH */
+  .coach-tip { background: linear-gradient(135deg, #1a0a00, #1a0000); border: 1px solid var(--red-dark); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .tip-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--orange); text-transform: uppercase; margin-bottom: 6px; }
+  .tip-text { font-size: 13px; color: #ccc; line-height: 1.5; }
+  .phase-card { border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .phase-card.p1 { background: linear-gradient(135deg, #1a0000, #2d0000); border: 1px solid var(--red); }
+  .phase-card.p2 { background: linear-gradient(135deg, #001a0a, #00220d); border: 1px solid #2e7d32; }
+  .phase-card.p3 { background: linear-gradient(135deg, #001020, #001830); border: 1px solid #1565c0; }
+  .phase-card h3 { font-size: 15px; font-weight: 900; margin-bottom: 4px; }
+  .phase-card p { font-size: 12px; color: #aaa; line-height: 1.5; margin-bottom: 8px; }
+  .phase-portions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .portion-pill { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.1); color: #ccc; }
+
+  .reminder-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .reminder-item:last-child { border-bottom: none; }
+  .reminder-info { flex: 1; }
+  .reminder-info .r-name { font-size: 13px; font-weight: 700; }
+  .reminder-info .r-time { font-size: 11px; color: var(--muted); }
+  .toggle {
+    position: relative; width: 44px; height: 24px; cursor: pointer;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0; background: #333; border-radius: 12px; transition: background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--red); }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+    background: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); }
+
+  /* STREAKS */
+  .streak-row { display: flex; gap: 6px; margin-top: 8px; }
+  .streak-dot { width: 28px; height: 28px; border-radius: 50%; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .streak-dot.done { background: var(--green); color: #fff; }
+  .streak-dot.miss { background: #2a2a2a; color: var(--muted); }
+  .streak-dot.today { background: var(--red); color: #fff; border: 2px solid #ff8a80; }
+  .streak-dot.future { background: #1a1a1a; color: #2a2a2a; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* MODAL */
+  #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: flex-end; }
+  #modal-overlay.open { display: flex; }
+  #modal { background: var(--card); border-radius: 20px 20px 0 0; padding: 20px; width: 100%; max-height: 80vh; overflow-y: auto; }
+  #modal h3 { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+  .modal-close { float: right; background: #333; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; color: #fff; cursor: pointer; }
+
+  /* CONFETTI */
+  @keyframes celebrate { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+  .celebrate { animation: celebrate 0.4s ease; }
+
+  .calorie-bar-wrap { margin-top: 10px; }
+  .cal-label-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .cal-track { height: 8px; background: #2a2a2a; border-radius: 4px; overflow: hidden; }
+  .cal-fill { height: 100%; border-radius: 4px; transition: width 0.5s; background: linear-gradient(90deg, var(--green), var(--orange)); }
+  .cal-fill.over { background: var(--red); }
+
+  .weight-row { display: flex; gap: 10px; align-items: flex-end; }
+  .weight-val { font-size: 28px; font-weight: 900; line-height: 1; }
+  .weight-change { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; }
+
+  /* SWAPS LIST */
+  .swap-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #1e1e1e; font-size: 13px; color: #ccc; }
+  .swap-item:last-child { border-bottom: none; }
+  .swap-icon { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>P<span>90</span>X</h1>
+    <div class="date-label" id="header-date"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+    <div class="phase-selector" id="phase-selector">
+      <button class="phase-btn active" onclick="setPhase(1)">Phase I</button>
+      <button class="phase-btn" onclick="setPhase(2)">Phase II</button>
+      <button class="phase-btn" onclick="setPhase(3)">Phase III</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);text-align:right;" id="phase-name-label">Fat Shredder · Level II</div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- TAB: TODAY -->
+  <div class="tab-panel active" id="tab-today">
+    <div class="card" id="summary-card">
+      <div class="card-title">Today's Summary</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <label>Calories</label>
+          <div class="val" id="sum-cal">0</div>
+          <div class="subval" id="sum-cal-target">/ 2,640 target</div>
+        </div>
+        <div class="summary-item">
+          <label>Completion</label>
+          <div class="val" id="sum-pct">0%</div>
+          <div class="subval" id="sum-groups">0 of 0 groups done</div>
+        </div>
+        <div class="summary-item">
+          <label>Water (8oz)</label>
+          <div class="val" id="sum-water">0 / 8</div>
+          <div class="subval">glasses</div>
+        </div>
+        <div class="summary-item">
+          <label>Streak</label>
+          <div class="val" id="sum-streak" style="color:var(--orange)">0 🔥</div>
+          <div class="subval">days in a row</div>
+        </div>
+      </div>
+      <div class="calorie-bar-wrap">
+        <div class="cal-label-row"><span>0 cal</span><span id="cal-target-label">2,640 cal</span></div>
+        <div class="cal-track"><div class="cal-fill" id="cal-fill-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Weekly Streak</div>
+      <div class="streak-row" id="streak-dots"></div>
+    </div>
+
+    <!-- CAFFEINE HOME CARD -->
+    <div class="card" id="home-caf-card" onclick="switchTab('caffeine', document.querySelectorAll('.nav-btn')[4])" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:0;">☕ Caffeine Today</div>
+        <span style="font-size:11px;color:var(--muted);">Tap to log →</span>
+      </div>
+
+      <!-- mg gauge row -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <div style="text-align:center;min-width:52px;">
+          <div style="font-size:30px;font-weight:900;line-height:1;" id="home-caf-total">0</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.5px;">MG TODAY</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;">
+            <span id="home-caf-status">No caffeine yet</span>
+            <span id="home-caf-limit">Limit: 270mg</span>
+          </div>
+          <div style="height:8px;background:#2a2a2a;border-radius:4px;overflow:hidden;">
+            <div id="home-caf-bar" style="height:100%;width:0%;border-radius:4px;transition:width 0.4s;background:linear-gradient(90deg,#43a047,#66bb6a);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Taper week banner -->
+      <div id="home-taper-banner" style="display:none;border-radius:8px;padding:8px 12px;margin-top:4px;background:var(--card2);border:1px solid #2e7d32;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--green);" id="home-taper-week-label">TAPER — WEEK 1</div>
+            <div style="font-size:12px;color:#ccc;margin-top:2px;" id="home-taper-detail">This week's limit: 270mg/day</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:900;" id="home-taper-remaining" style="color:var(--green);">--</div>
+            <div style="font-size:9px;color:var(--muted);">mg remaining</div>
+          </div>
+        </div>
+        <!-- Taper progress bar -->
+        <div style="margin-top:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:3px;">
+            <span id="home-taper-start-mg"></span><span id="home-taper-end-mg"></span>
+          </div>
+          <div style="height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;">
+            <div id="home-taper-progress" style="height:100%;background:var(--green);border-radius:2px;transition:width 0.4s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="checklist-card">
+      <div class="card-title">Daily Portions</div>
+      <div id="food-groups-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: GUIDE -->
+  <div class="tab-panel" id="tab-guide">
+    <div class="card">
+      <div class="section-title">Food Reference</div>
+      <div class="section-sub">Tap a category to expand • Level II</div>
+      <div id="food-guide-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Easy Swaps</div>
+      <div class="swap-item"><span class="swap-icon">🔄</span><span><b>Proteins:</b> Chicken ↔ Turkey ↔ Lean beef ↔ Salmon ↔ Tofu</span></div>
+      <div class="swap-item"><span class="swap-icon">🔄</span><span><b>Carbs:</b> Brown rice ↔ Quinoa ↔ Sweet potato ↔ Oatmeal</span></div>
+      <div class="swap-item"><span class="swap-icon">🔄</span><span><b>Fruits:</b> Berries ↔ Apple ↔ Pineapple ↔ Orange</span></div>
+      <div class="swap-item"><span class="swap-icon">🔄</span><span><b>Veggies:</b> Broccoli ↔ Spinach ↔ Asparagus ↔ Zucchini</span></div>
+      <div class="swap-item"><span class="swap-icon">🔄</span><span><b>Snacks:</b> Protein bar ↔ Recovery drink ↔ Greek yogurt</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">7-Day Meal Plan</div>
+      <div id="meal-plan-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: BODY FAT -->
+  <div class="tab-panel" id="tab-bf">
+    <div class="card">
+      <div class="card-title">Body Composition</div>
+      <div class="bf-hero">
+        <div class="bf-current" id="bf-current-val">--%<span>BF</span></div>
+        <div class="bf-goal-row">
+          <span class="bf-goal-label">Goal:</span>
+          <span class="bf-goal-val" id="bf-goal-display">--%</span>
+          <span class="bf-delta" id="bf-delta-display"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log Entry</div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>Body Fat %</label>
+          <input type="number" id="bf-input" min="3" max="50" step="0.1" placeholder="e.g. 18.5">
+        </div>
+        <div class="input-group">
+          <label>Weight (lbs)</label>
+          <input type="number" id="weight-input" min="80" max="400" step="0.1" placeholder="e.g. 185">
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>Date</label>
+          <input type="date" id="bf-date-input">
+        </div>
+        <div class="input-group">
+          <label>Goal BF%</label>
+          <input type="number" id="bf-goal-input" min="3" max="40" step="0.1" placeholder="e.g. 12.0">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="logBF()">📊 Log Entry</button>
+      <button class="btn-secondary" onclick="saveGoal()">🎯 Set Goal</button>
+    </div>
+
+    <div class="card" id="bf-chart-card" style="display:none">
+      <div class="card-title">Progress Chart</div>
+      <canvas id="bf-chart"></canvas>
+    </div>
+
+    <div class="card" id="bf-log-card" style="display:none">
+      <div class="card-title">History</div>
+      <table class="bf-log-table">
+        <thead><tr><th>Date</th><th>BF%</th><th>Weight</th><th>Change</th><th></th></tr></thead>
+        <tbody id="bf-log-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Body Fat Reference</div>
+      <div style="font-size:12px;color:#aaa;line-height:1.7;">
+        <div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1e1e1e"><span style="width:90px;font-weight:700;color:var(--blue)">Essential</span><span>2–5% (Men) / 10–13% (Women)</span></div>
+        <div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1e1e1e"><span style="width:90px;font-weight:700;color:var(--green)">Athletic</span><span>6–13% (Men) / 14–20% (Women)</span></div>
+        <div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1e1e1e"><span style="width:90px;font-weight:700;color:var(--orange)">Fitness</span><span>14–17% (Men) / 21–24% (Women)</span></div>
+        <div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1e1e1e"><span style="width:90px;font-weight:700;color:#ef6c00">Average</span><span>18–24% (Men) / 25–31% (Women)</span></div>
+        <div style="display:flex;gap:8px;padding:4px 0"><span style="width:90px;font-weight:700;color:var(--red)">Obese</span><span>25%+ (Men) / 32%+ (Women)</span></div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);font-style:italic;">Track weekly. BF% changes slowly — consistency matters more than daily fluctuations.</div>
+    </div>
+  </div>
+
+  <!-- TAB: COACH -->
+  <div class="tab-panel" id="tab-coach">
+    <div class="card">
+      <div class="card-title">Your Phases · Level II</div>
+
+      <div class="phase-card p1">
+        <h3 style="color:#ff6b6b">⚡ Phase I — Fat Shredder</h3>
+        <p>High protein, low carb. Build lean muscle while burning fat. Your body becomes a fat-burning machine. This is the hardest phase — dig deep!</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×7</span>
+          <span class="portion-pill">🥛 Dairy ×3</span>
+          <span class="portion-pill">🍎 Fruit ×1</span>
+          <span class="portion-pill">🥦 Veg ×4</span>
+          <span class="portion-pill">🥑 Fat ×1</span>
+          <span class="portion-pill">🍚 Carb ×1</span>
+          <span class="portion-pill">🍫 Snacks ×3</span>
+          <span class="portion-pill">🧂 Cond ×2</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~60% protein</div>
+      </div>
+
+      <div class="phase-card p2">
+        <h3 style="color:#81c784">🚀 Phase II — Energy Booster</h3>
+        <p>Balanced macros. Add more carbs to fuel increasingly intense workouts. Your energy levels should noticeably improve in this phase.</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×6</span>
+          <span class="portion-pill">🥛 Dairy ×2</span>
+          <span class="portion-pill">🍎 Fruit ×1</span>
+          <span class="portion-pill">🥦 Veg ×3</span>
+          <span class="portion-pill">🥑 Fat ×1</span>
+          <span class="portion-pill">🍚 Carb ×3</span>
+          <span class="portion-pill">🍫 Snacks ×3</span>
+          <span class="portion-pill">🧂 Cond ×2</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~40% protein, 40% carb</div>
+      </div>
+
+      <div class="phase-card p3">
+        <h3 style="color:#64b5f6">🏆 Phase III — Endurance Maximizer</h3>
+        <p>Carb-heavy, lower protein. Fuel peak performance. Your body is now lean enough to maximize carbohydrates for elite-level endurance.</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×3</span>
+          <span class="portion-pill">🥛 Dairy ×1</span>
+          <span class="portion-pill">🍎 Fruit ×3</span>
+          <span class="portion-pill">🥦 Veg ×3</span>
+          <span class="portion-pill">🥑 Fat ×1</span>
+          <span class="portion-pill">🍚 Carb ×4</span>
+          <span class="portion-pill">🍫 Snacks ×3</span>
+          <span class="portion-pill">🧂 Cond ×3</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~20% protein, 60% carb</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Daily Tips</div>
+      <div class="coach-tip">
+        <div class="tip-label">🔑 Key Rule</div>
+        <div class="tip-text" id="coach-tip-main"></div>
+      </div>
+      <div id="coach-tips-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reminders</div>
+      <div id="reminders-list"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Enable browser notifications when prompted to receive meal and workout reminders.</div>
+      <button class="btn-secondary" onclick="requestNotifications()" style="margin-top:8px;">🔔 Enable Notifications</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Settings</div>
+
+      <!-- Body Weight -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0.5px;display:block;margin-bottom:4px;">BODY WEIGHT (for calorie calc)</label>
+        <div class="input-row" style="margin-bottom:0">
+          <input type="number" id="body-weight-input" min="80" max="400" placeholder="e.g. 185" style="max-width:120px;">
+          <button class="btn-primary" onclick="saveBodyWeight()" style="width:auto;padding:12px 16px;margin-top:0;flex-shrink:0;">Save</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;" id="rmr-display">Enter weight to calculate your daily calorie target</div>
+      </div>
+
+      <!-- Google Sheets Sync -->
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px;">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0.5px;display:block;margin-bottom:4px;">📊 GOOGLE SHEETS SYNC</label>
+        <input type="url" id="script-url-input" placeholder="Paste Apps Script Web App URL here…"
+          style="width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;margin-bottom:8px;">
+        <button class="btn-primary" onclick="saveScriptUrl()" style="margin-bottom:8px;">💾 Save URL</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" onclick="syncToSheet()" style="flex:1;margin-top:0;" id="sync-btn">☁️ Sync to Sheet</button>
+          <button class="btn-secondary" onclick="loadFromSheet()" style="flex:1;margin-top:0;" id="load-btn">📥 Load from Sheet</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;" id="sync-status">
+          <span id="sync-status-text">No script URL saved yet. See setup instructions in <b>P90X_Apps_Script.gs</b>.</span>
+        </div>
+      </div>
+
+      <!-- Reset -->
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <button class="btn-secondary" onclick="resetToday()" style="background:#1a0000;border-color:var(--red-dark);color:var(--red);">🔄 Reset Today's Tracker</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: CAFFEINE -->
+  <div class="tab-panel" id="tab-caffeine">
+
+    <!-- Daily gauge -->
+    <div class="card">
+      <div class="card-title">Today's Caffeine</div>
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:48px;font-weight:900;line-height:1;" id="caf-today-total">0</div>
+          <div style="font-size:12px;color:var(--muted);">mg consumed</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+            <span>0</span><span id="caf-goal-label">Goal: 400mg</span>
+          </div>
+          <div style="height:10px;background:#2a2a2a;border-radius:5px;overflow:hidden;">
+            <div id="caf-gauge-fill" style="height:100%;border-radius:5px;transition:width 0.4s;background:linear-gradient(90deg,#43a047,#ff6f00);width:0%"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;" id="caf-gauge-label">Under daily target</div>
+        </div>
+      </div>
+
+      <!-- Log entry -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div class="input-group">
+          <label>Source</label>
+          <select id="caf-source" style="width:100%;padding:11px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;-webkit-appearance:none;">
+            <option value="Pre-Workout">Pre-Workout</option>
+            <option value="Coffee">Coffee</option>
+            <option value="Espresso">Espresso</option>
+            <option value="Green Tea">Green Tea</option>
+            <option value="Black Tea">Black Tea</option>
+            <option value="Energy Drink">Energy Drink</option>
+            <option value="Soda">Soda</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Caffeine (mg)</label>
+          <input type="number" id="caf-mg" min="0" max="600" placeholder="e.g. 150">
+        </div>
+        <div class="input-group">
+          <label>Time</label>
+          <input type="time" id="caf-time" style="width:100%;padding:11px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;">
+        </div>
+        <div class="input-group" style="justify-content:flex-end;display:flex;flex-direction:column;">
+          <button class="btn-primary" onclick="logCaffeine()" style="margin-top:0;height:46px;">+ Log</button>
+        </div>
+      </div>
+
+      <!-- Quick-add buttons -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:0.5px;">QUICK ADD</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="caf-quick-btns"></div>
+    </div>
+
+    <!-- Today's log -->
+    <div class="card" id="caf-log-card">
+      <div class="card-title">Today's Log</div>
+      <div id="caf-log-list"></div>
+    </div>
+
+    <!-- Taper plan -->
+    <div class="card">
+      <div class="card-title">Reduction Plan</div>
+      <div style="margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="input-group">
+            <label>Current Daily (mg)</label>
+            <input type="number" id="caf-current-input" min="50" max="1000" placeholder="e.g. 320">
+          </div>
+          <div class="input-group">
+            <label>Target Daily (mg)</label>
+            <input type="number" id="caf-target-input" min="0" max="500" placeholder="e.g. 100">
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom:8px;">
+          <label>Reduce by (mg/week)</label>
+          <select id="caf-reduce-rate" style="width:100%;padding:11px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;-webkit-appearance:none;">
+            <option value="10">10 mg/week — Very gradual (fewest side effects)</option>
+            <option value="20">20 mg/week — Gradual (recommended)</option>
+            <option value="25" selected>25 mg/week — Moderate</option>
+            <option value="50">50 mg/week — Faster (may cause headaches)</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="buildTaperPlan()">📅 Generate My Taper Plan</button>
+      </div>
+      <div id="taper-plan-output"></div>
+    </div>
+
+    <!-- Substitutes & tips -->
+    <div class="card">
+      <div class="card-title">Energy Without the Caffeine</div>
+      <div style="margin-bottom:10px;font-size:13px;color:#aaa;line-height:1.6;">These are the strategies that actually work for sustained, crash-free energy — especially for early morning workouts.</div>
+
+      <div style="background:linear-gradient(135deg,#001a0a,#002210);border:1px solid #2e7d32;border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--green);margin-bottom:6px;">🎯 YOUR PERSONAL PLAN · 270mg → Goal</div>
+        <div style="font-size:13px;color:#ccc;line-height:1.6;"><b style="color:#fff">Step 1 (Weeks 1–4):</b> Keep your 6 AM pre-workout (150mg). Cut the 10 AM dose from 120mg → 90mg → 60mg → 30mg → 0mg over 4–5 weeks. Replace it with a protein snack + cold water.<br><br><b style="color:#fff">Step 2 (Weeks 5+):</b> Once the 10 AM dose is gone, start weaning the pre-workout. Drop 25mg every 2 weeks: 150 → 125 → 100 → 75 → 50mg. At 50mg you're at green tea level — easy to maintain or continue cutting.<br><br><b style="color:#fff">Eye relief:</b> You should notice less eye strain within 2–3 weeks as your adrenal system stabilizes.</div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--orange);margin-bottom:6px;">☀️ PRE-WORKOUT ALTERNATIVES</div>
+      <div class="coach-tip" style="margin-bottom:8px;">
+        <div class="tip-label">🍋 Cold Water + Electrolytes</div>
+        <div class="tip-text">Drink 16 oz cold water with a pinch of sea salt and squeeze of lemon immediately upon waking. Dehydration is the #1 cause of morning fatigue — this often works as well as pre-workout.</div>
+      </div>
+      <div class="coach-tip" style="margin-bottom:8px;">
+        <div class="tip-label">🍵 Green Tea (L-Theanine + Caffeine)</div>
+        <div class="tip-text">Matcha or strong green tea gives you ~70mg caffeine plus L-theanine, which smooths out the stimulant effect. No crash, no jitters. Many athletes prefer this over pre-workout for steady energy.</div>
+      </div>
+      <div class="coach-tip" style="margin-bottom:8px;">
+        <div class="tip-label">🧪 Rhodiola Rosea (adaptogen)</div>
+        <div class="tip-text">A natural adaptogen clinically shown to reduce fatigue and improve physical performance. Take 200–400mg 30 min before workouts. Zero caffeine — pairs well during your taper.</div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--orange);margin:12px 0 6px;">🕙 10AM ENERGY ALTERNATIVES</div>
+      <div class="coach-tip" style="margin-bottom:8px;">
+        <div class="tip-label">🥩 Protein Snack + 5-Minute Walk</div>
+        <div class="tip-text">Your 10 AM crash is often blood sugar, not caffeine deficiency. A Level II protein snack (Greek yogurt, cottage cheese, string cheese) + a 5-minute walk outside resets focus better than caffeine for most people.</div>
+      </div>
+      <div class="coach-tip" style="margin-bottom:8px;">
+        <div class="tip-label">💧 Hydration Check</div>
+        <div class="tip-text">By 10 AM post-workout you're likely mildly dehydrated. Try 20 oz water first and wait 10 minutes before reaching for caffeine. You may not need it at all.</div>
+      </div>
+      <div class="coach-tip" style="margin-bottom:0;">
+        <div class="tip-label">👁️ Eye Fatigue Specifically</div>
+        <div class="tip-text">Tired eyes from screens respond to the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds. Also consider blue-light glasses, increasing screen brightness, and making sure you're hitting your 8 glasses of water — dehydration directly causes eye strain.</div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="card">
+      <div class="card-title">Caffeine Settings</div>
+      <div class="input-group" style="margin-bottom:8px;">
+        <label>Daily Caffeine Goal (mg)</label>
+        <input type="number" id="caf-goal-input" min="0" max="600" placeholder="e.g. 200">
+      </div>
+      <div class="input-group" style="margin-bottom:12px;">
+        <label>Pre-Workout Caffeine (mg per serving)</label>
+        <input type="number" id="caf-preworkout-input" min="0" max="500" placeholder="Check your label, e.g. 200">
+      </div>
+      <button class="btn-primary" onclick="saveCaffeineSettings()">💾 Save Settings</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">Common amounts: Pre-workout 150–300mg · Coffee 95mg · Espresso 63mg · Green Tea 28mg · Black Tea 47mg · Energy drink 80–150mg</div>
+    </div>
+
+  </div>
+</div>
+
+<nav id="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab('today', this)">
+    <span class="icon">📋</span>TODAY
+  </button>
+  <button class="nav-btn" onclick="switchTab('guide', this)">
+    <span class="icon">🍽️</span>GUIDE
+  </button>
+  <button class="nav-btn" onclick="switchTab('bf', this)">
+    <span class="icon">📊</span>BODY FAT
+  </button>
+  <button class="nav-btn" onclick="switchTab('coach', this)">
+    <span class="icon">💪</span>COACH
+  </button>
+  <button class="nav-btn" onclick="switchTab('caffeine', this)">
+    <span class="icon">☕</span>CAFFEINE
+  </button>
+</nav>
+
+<div id="toast"></div>
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+<script>
+// ========== DATA ==========
+const PHASES = {
+  1: { name: 'Fat Shredder', groups: { proteins:7, dairy:3, fruits:1, vegetables:4, fats:1, carbs:1, snacks:3, condiments:2, water:8 } },
+  2: { name: 'Energy Booster', groups: { proteins:6, dairy:2, fruits:1, vegetables:3, fats:1, carbs:3, snacks:3, condiments:2, water:8 } },
+  3: { name: 'Endurance Maximizer', groups: { proteins:3, dairy:1, fruits:3, vegetables:3, fats:1, carbs:4, snacks:3, condiments:3, water:8 } }
+};
+
+const FOOD_GROUPS = [
+  { key:'proteins', label:'Proteins', icon:'🥩', cal:100, color:'#e53935',
+    foods:['Chicken breast (3 oz cooked)','Turkey breast (3 oz cooked)','Lean beef, 95% lean (3 oz)','Salmon or tuna (3 oz)','Egg whites (5 whites)','Whole egg + 3 whites','Whey protein shake (1 scoop)','Shrimp (3 oz)','Tofu, firm (4 oz)','Tilapia or cod (4 oz)','Turkey burger, lean (3 oz)','Canned tuna in water (3 oz)'] },
+  { key:'dairy', label:'Dairy', icon:'🥛', cal:120, color:'#1e88e5',
+    foods:['Low-fat milk (1 cup)','Greek yogurt, plain nonfat (½ cup)','Low-fat cottage cheese (½ cup)','String cheese (2 sticks)','Low-fat cheese (1.5 oz)','Low-fat kefir (1 cup)','Low-fat yogurt (¾ cup)'] },
+  { key:'fruits', label:'Fruits', icon:'🍎', cal:100, color:'#e91e63',
+    foods:['Apple (1 medium)','Banana (1 medium)','Mixed berries (1 cup)','Orange (1 large)','Pineapple chunks (¾ cup)','Grapes (1 cup)','Melon (1.5 cups)','Peach or pear (1 medium)','Mango (½ cup)','Blueberries (¾ cup)'] },
+  { key:'vegetables', label:'Vegetables', icon:'🥦', cal:50, color:'#43a047',
+    foods:['Broccoli (1 cup)','Spinach (2 cups raw)','Asparagus (10 spears)','Green beans (1 cup)','Brussels sprouts (1 cup)','Bell pepper (1 large)','Tomato (2 medium)','Cucumber (2 cups)','Zucchini (1 cup)','Mixed greens (2 cups)','Carrots (1 cup)','Cauliflower (1 cup)','Celery sticks (2 cups)'] },
+  { key:'fats', label:'Fats', icon:'🥑', cal:120, color:'#ff6f00',
+    foods:['Almonds (1 oz / ~23 almonds)','Walnuts (1 oz / ~14 halves)','Olive oil (1 tablespoon)','Avocado (¼ medium)','Natural peanut butter (1 tbsp)','Almond butter (1 tbsp)','Flaxseeds ground (2 tbsp)','Mixed nuts (1 oz)','Sunflower seeds (2 tbsp)'] },
+  { key:'carbs', label:'Carbs/Grains', icon:'🍚', cal:200, color:'#8e24aa',
+    foods:['Brown rice (½ cup cooked)','Oatmeal (½ cup dry / 1 cup cooked)','Quinoa (½ cup cooked)','Sweet potato (1 medium)','Whole grain bread (2 slices)','Whole grain pasta (½ cup cooked)','Corn tortillas (2 small)','Lentils or black beans (½ cup)','Barley (½ cup cooked)'] },
+  { key:'snacks', label:'Snacks', icon:'🍫', cal:150, color:'#5c6bc0',
+    foods:['P90X Protein Bar (1 bar ~200 cal)','Protein/Recovery Drink (1 serving ~100-150 cal)','Double Snack (DBL) = 200 cal snack','Shakeology (1 serving, 140 cal)','Greek yogurt + almonds (~200 cal)','Cottage cheese + walnuts (~200 cal)','Whey shake + berries (~200 cal)'] },
+  { key:'condiments', label:'Condiments', icon:'🧂', cal:50, color:'#78909c',
+    foods:['Salsa (½ cup)','Yellow or Dijon mustard (2 tbsp)','Balsamic vinegar (2 tbsp)','Low-sodium soy sauce (2 tbsp)','Hot sauce (unlimited essentially)','Lemon or lime juice (unlimited)','Ketchup, low sugar (2 tbsp)','Vinaigrette, light (1 tbsp)'] },
+  { key:'water', label:'Water (8oz)', icon:'💧', cal:0, color:'#26c6da',
+    foods:['8 oz glass of water (drink throughout the day)','Herbal tea counts','Coffee with no added sugar counts partially','Add lemon or lime for flavor'] }
+];
+
+const MEAL_PLANS = [
+  { day:'Day 1', meals:[
+    ['Breakfast','Overnight oats (½ cup oats, 1 scoop whey, ½ cup berries, ½ cup low-fat milk)'],
+    ['Snack 1','Recovery drink + string cheese'],
+    ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), carrots (½ cup), brown rice (½ cup), salsa'],
+    ['Snack 2','Protein bar + Greek yogurt (½ cup)'],
+    ['Dinner','Chicken breast (6 oz), asparagus (1 cup), zucchini (½ cup), pineapple (½ cup)'],
+    ['Snack 3','Protein shake']
+  ]},
+  { day:'Day 2', meals:[
+    ['Breakfast','Scrambled eggs (3 whites + 1 whole), cottage cheese (½ cup), spinach (1 cup), olive oil (1 tsp)'],
+    ['Snack 1','Whey shake + ½ cup berries'],
+    ['Lunch','Chicken breast (6 oz), green beans (1 cup), quinoa (½ cup), mustard'],
+    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+    ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), apple (½)'],
+    ['Snack 3','Protein bar']
+  ]},
+  { day:'Day 3', meals:[
+    ['Breakfast','Overnight oats (same as Day 1)'],
+    ['Snack 1','Recovery drink + string cheese'],
+    ['Lunch','Grilled chicken salad (6 oz chicken, mixed greens, cucumber, tomato, balsamic vinegar)'],
+    ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
+    ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), sweet potato (½ cup)'],
+    ['Snack 3','Protein shake']
+  ]},
+  { day:'Day 4', meals:[
+    ['Breakfast','Greek yogurt parfait (1 cup yogurt, ½ cup berries, 1 tbsp chia seeds)'],
+    ['Snack 1','Whey shake + celery sticks'],
+    ['Lunch','Chicken breast (6 oz), asparagus (1 cup), brown rice (½ cup), salsa'],
+    ['Snack 2','Protein bar + cottage cheese (½ cup)'],
+    ['Dinner','Chicken stir-fry (6 oz chicken, bell peppers, broccoli, soy sauce)'],
+    ['Snack 3','Recovery drink']
+  ]},
+  { day:'Day 5', meals:[
+    ['Breakfast','Overnight oats (same as Day 1)'],
+    ['Snack 1','Protein shake + string cheese'],
+    ['Lunch','Chicken burger (6 oz), lettuce wrap, roasted zucchini (1 cup), mustard'],
+    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+    ['Dinner','Chicken breast (6 oz), spinach (1 cup), sweet potato (½ cup)'],
+    ['Snack 3','Protein bar']
+  ]},
+  { day:'Day 6', meals:[
+    ['Breakfast','Scrambled eggs (same as Day 2)'],
+    ['Snack 1','Recovery drink + celery sticks'],
+    ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), quinoa (½ cup), salsa'],
+    ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
+    ['Dinner','Chicken breast (6 oz), asparagus (1 cup), pineapple (½ cup)'],
+    ['Snack 3','Protein shake']
+  ]},
+  { day:'Day 7 (Rest/Active Recovery)', meals:[
+    ['Breakfast','Overnight oats (same as Day 1)'],
+    ['Snack 1','Whey shake + string cheese'],
+    ['Lunch','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), brown rice (½ cup), mustard'],
+    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+    ['Dinner','Chicken breast (6 oz), spinach (1 cup), apple (½)'],
+    ['Snack 3','Protein bar']
+  ]}
+];
+
+const COACH_TIPS = {
+  1: [
+    { label:'🎯 Protein Priority', text:'Hit your 7 protein servings first — they\'re the foundation of Phase I. Space them every 2-3 hours to keep muscle protein synthesis elevated all day.' },
+    { label:'💧 Hydration First', text:'Drink a full glass of water before every meal. This controls hunger AND ensures you hit your 8 glasses. Don\'t wait until you\'re thirsty.' },
+    { label:'🌙 Timing Matters', text:'Have your last protein serving 30-60 minutes before bed. Cottage cheese or Greek yogurt are ideal — the slow-digesting casein works while you sleep.' },
+    { label:'🚫 Limit Carbs', text:'Phase I keeps carbs low (1 serving) to force your body to burn fat. This is intentional. Trust the plan — your energy will normalize after week 2.' }
+  ],
+  2: [
+    { label:'⚡ Carb Timing', text:'In Phase II you have 3 carb servings. Use 1-2 of them around your workout — one pre-workout (1-2 hours before) and one post-workout for recovery.' },
+    { label:'🔁 Build on Phase I', text:'Keep all the healthy habits from Phase I. You\'re not abandoning protein — you\'re just adding carbs as a performance fuel for harder workouts.' },
+    { label:'🥗 Pre-Workout Fuel', text:'Eat a carb + protein meal 1.5-2 hours before your workout. Brown rice or oatmeal with chicken is ideal. Never train fasted at Level II intensity.' },
+    { label:'📈 Watch Your Energy', text:'If you feel sluggish in week 1 of Phase II, that\'s normal. Your body is adapting to more carbs. By week 2, your performance should increase noticeably.' }
+  ],
+  3: [
+    { label:'🏃 Carb Loading', text:'4 carb servings in Phase III is designed for elite endurance. Focus on complex carbs (oats, brown rice, quinoa) over simple sugars for sustained energy.' },
+    { label:'🔋 Glycogen Focus', text:'Your goal now is to keep glycogen stores topped off. Have carbs with every major meal. This phase is about performance at the highest level.' },
+    { label:'💪 Maintain Muscle', text:'With fewer protein servings, quality matters even more. Choose complete proteins and consider timing them right after your hardest workouts.' },
+    { label:'🎉 You\'re Almost There', text:'Phase III is the finish line. Your body is lean, trained, and efficient. Push hard, recover well, and take progress photos — the results will be undeniable.' }
+  ]
+};
+
+const REMINDERS = [
+  { id:'breakfast', name:'Breakfast Reminder', time:'7:00 AM', default:true },
+  { id:'snack1', name:'Mid-Morning Snack', time:'10:00 AM', default:true },
+  { id:'lunch', name:'Lunch Reminder', time:'12:30 PM', default:true },
+  { id:'snack2', name:'Afternoon Snack', time:'3:30 PM', default:true },
+  { id:'dinner', name:'Dinner Reminder', time:'6:30 PM', default:true },
+  { id:'snack3', name:'Evening Snack', time:'8:30 PM', default:false },
+  { id:'water', name:'Water Reminder', time:'Every 2 hrs', default:true },
+  { id:'workout', name:'Workout Check-in', time:'5:30 PM', default:false }
+];
+
+// ========== STATE ==========
+let state = {
+  phase: parseInt(localStorage.getItem('p90x_phase') || '1'),
+  today: new Date().toISOString().split('T')[0],
+  tracking: JSON.parse(localStorage.getItem('p90x_tracking') || '{}'),
+  bfLog: JSON.parse(localStorage.getItem('p90x_bf') || '[]'),
+  bfGoal: parseFloat(localStorage.getItem('p90x_bf_goal') || '0'),
+  bodyWeight: parseFloat(localStorage.getItem('p90x_weight') || '0'),
+  reminders: JSON.parse(localStorage.getItem('p90x_reminders') || 'null'),
+  streak: JSON.parse(localStorage.getItem('p90x_streak') || '{}'),
+  scriptUrl: localStorage.getItem('p90x_script_url') || '',
+  lastSync: localStorage.getItem('p90x_last_sync') || '',
+  caffeineLog: JSON.parse(localStorage.getItem('p90x_caf_log') || '{}'),
+  caffeineGoal: parseInt(localStorage.getItem('p90x_caf_goal') || '270'),
+  caffeinePreworkout: parseInt(localStorage.getItem('p90x_caf_preworkout') || '150'),
+  caffeineTaper: JSON.parse(localStorage.getItem('p90x_caf_taper') || 'null')
+};
+if (!state.reminders) {
+  state.reminders = {};
+  REMINDERS.forEach(r => { state.reminders[r.id] = r.default; });
+}
+
+// Chart instance
+let bfChartInstance = null;
+
+// ========== HELPERS ==========
+function saveState() {
+  localStorage.setItem('p90x_phase', state.phase);
+  localStorage.setItem('p90x_tracking', JSON.stringify(state.tracking));
+  localStorage.setItem('p90x_bf', JSON.stringify(state.bfLog));
+  localStorage.setItem('p90x_bf_goal', state.bfGoal);
+  localStorage.setItem('p90x_weight', state.bodyWeight);
+  localStorage.setItem('p90x_reminders', JSON.stringify(state.reminders));
+  localStorage.setItem('p90x_streak', JSON.stringify(state.streak));
+  localStorage.setItem('p90x_script_url', state.scriptUrl);
+  localStorage.setItem('p90x_last_sync', state.lastSync);
+  localStorage.setItem('p90x_caf_log', JSON.stringify(state.caffeineLog));
+  localStorage.setItem('p90x_caf_goal', state.caffeineGoal);
+  localStorage.setItem('p90x_caf_preworkout', state.caffeinePreworkout);
+  localStorage.setItem('p90x_caf_taper', JSON.stringify(state.caffeineTaper));
+}
+
+function getToday() { return new Date().toISOString().split('T')[0]; }
+
+function getTodayTracking() {
+  const d = getToday();
+  if (!state.tracking[d]) {
+    state.tracking[d] = {};
+    FOOD_GROUPS.forEach(g => { state.tracking[d][g.key] = 0; });
+  }
+  return state.tracking[d];
+}
+
+function calcCalories(tracking) {
+  let cal = 0;
+  FOOD_GROUPS.forEach(g => {
+    if (g.key !== 'water') cal += (tracking[g.key] || 0) * g.cal;
+  });
+  return cal;
+}
+
+function calcTargetCal() {
+  const phase = PHASES[state.phase];
+  let cal = 0;
+  FOOD_GROUPS.forEach(g => {
+    if (g.key !== 'water') cal += (phase.groups[g.key] || 0) * g.cal;
+  });
+  return cal;
+}
+
+function calcCompletion(tracking) {
+  const phase = PHASES[state.phase];
+  const groups = phase.groups;
+  let done = 0, total = 0;
+  Object.keys(groups).forEach(k => {
+    total++;
+    if ((tracking[k] || 0) >= groups[k]) done++;
+  });
+  return { done, total, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+function showToast(msg, duration = 2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function formatDate(d) {
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+
+// ========== PHASE ==========
+function setPhase(p) {
+  state.phase = p;
+  saveState();
+  document.querySelectorAll('.phase-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i+1 === p);
+  });
+  const names = { 1:'Fat Shredder · Level II', 2:'Energy Booster · Level II', 3:'Endurance Maximizer · Level II' };
+  document.getElementById('phase-name-label').textContent = names[p];
+  renderTodayTab();
+  updateCoachTips();
+}
+
+// ========== TAB SWITCHING ==========
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('app').scrollTop = 0;
+  if (tab === 'bf') renderBFTab();
+  if (tab === 'caffeine') renderCaffeineTab();
+}
+
+// ========== TODAY TAB ==========
+function renderTodayTab() {
+  renderFoodGroups();
+  updateSummary();
+  renderStreak();
+  updateHomeCafCard();
+}
+
+function renderFoodGroups() {
+  const phase = PHASES[state.phase];
+  const tracking = getTodayTracking();
+  const list = document.getElementById('food-groups-list');
+  list.innerHTML = '';
+
+  FOOD_GROUPS.forEach(fg => {
+    const target = phase.groups[fg.key] || 0;
+    const current = tracking[fg.key] || 0;
+    const pct = target ? Math.min(current / target, 1) : (current > 0 ? 1 : 0);
+    const done = current >= target && target > 0;
+    const over = current > target && target > 0;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'food-group';
+
+    const displayCount = target > 0 ? `${current} / ${target}` : `${current}`;
+    const countClass = over ? 'over' : (done ? 'done' : '');
+    const barColor = over ? 'var(--orange)' : (done ? 'var(--green)' : fg.color);
+
+    wrap.innerHTML = `
+      <div class="food-group-header">
+        <div class="fg-left">
+          <span class="fg-icon">${fg.icon}</span>
+          <div>
+            <div class="fg-name">${fg.label}</div>
+            <div class="fg-cal">${fg.cal ? fg.cal + ' cal ea' : 'Zero cal'}</div>
+            <div class="progress-track" style="width:90px;">
+              <div class="progress-fill" style="width:${pct*100}%;background:${barColor}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="fg-counter">
+          <button class="count-btn minus" onclick="adjustCount('${fg.key}', -1)">−</button>
+          <div class="count-display ${countClass}" id="count-${fg.key}">${displayCount}</div>
+          <button class="count-btn plus" onclick="adjustCount('${fg.key}', 1)">+</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(wrap);
+  });
+}
+
+function adjustCount(key, delta) {
+  const tracking = getTodayTracking();
+  const phase = PHASES[state.phase];
+  const target = phase.groups[key] || 0;
+  const newVal = Math.max(0, (tracking[key] || 0) + delta);
+  tracking[key] = newVal;
+
+  // Check if just completed this group
+  if (delta > 0 && newVal === target && target > 0) {
+    showToast('✅ ' + FOOD_GROUPS.find(f => f.key === key).label + ' complete!');
+  }
+
+  // Check if all done
+  const comp = calcCompletion(tracking);
+  if (comp.pct === 100) {
+    setTimeout(() => showToast('🎉 All portions complete! Amazing work!', 3000), 500);
+    markStreakDay(getToday());
+  }
+
+  saveState();
+  renderFoodGroups();
+  updateSummary();
+}
+
+function updateSummary() {
+  const tracking = getTodayTracking();
+  const cal = calcCalories(tracking);
+  const target = calcTargetCal();
+  const comp = calcCompletion(tracking);
+  const water = tracking['water'] || 0;
+
+  document.getElementById('sum-cal').textContent = cal.toLocaleString();
+  document.getElementById('sum-cal').className = 'val' + (cal >= target ? ' good' : '');
+  document.getElementById('sum-cal-target').textContent = `/ ${target.toLocaleString()} target`;
+  document.getElementById('sum-pct').textContent = comp.pct + '%';
+  document.getElementById('sum-groups').textContent = `${comp.done} of ${comp.total} groups done`;
+  document.getElementById('sum-water').textContent = `${water} / 8`;
+  document.getElementById('sum-streak').textContent = (state.streak.count || 0) + ' 🔥';
+  document.getElementById('cal-target-label').textContent = target.toLocaleString() + ' cal';
+
+  const fillPct = target > 0 ? Math.min(cal / target * 100, 110) : 0;
+  const fillEl = document.getElementById('cal-fill-bar');
+  fillEl.style.width = fillPct + '%';
+  fillEl.className = 'cal-fill' + (cal > target * 1.05 ? ' over' : '');
+}
+
+function renderStreak() {
+  const container = document.getElementById('streak-dots');
+  container.innerHTML = '';
+  const today = getToday();
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const isToday = ds === today;
+    const tracking = state.tracking[ds];
+    let done = false;
+    if (tracking) {
+      const comp = calcCompletionForDate(tracking);
+      done = comp.pct >= 80;
+    }
+
+    const dot = document.createElement('div');
+    dot.className = 'streak-dot ' + (isToday ? 'today' : (done ? 'done' : (i === 0 ? 'today' : 'miss')));
+    dot.textContent = ['S','M','T','W','T','F','S'][d.getDay()];
+    container.appendChild(dot);
+  }
+}
+
+function calcCompletionForDate(tracking) {
+  const phase = PHASES[state.phase];
+  const groups = phase.groups;
+  let done = 0, total = 0;
+  Object.keys(groups).forEach(k => {
+    total++;
+    if ((tracking[k] || 0) >= groups[k]) done++;
+  });
+  return { done, total, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+function markStreakDay(date) {
+  if (!state.streak.lastDate) {
+    state.streak = { count: 1, lastDate: date };
+  } else {
+    const last = new Date(state.streak.lastDate);
+    const curr = new Date(date);
+    const diff = (curr - last) / (1000 * 60 * 60 * 24);
+    if (diff === 1) {
+      state.streak = { count: (state.streak.count || 0) + 1, lastDate: date };
+    } else if (diff === 0) {
+      // same day, no change
+    } else {
+      state.streak = { count: 1, lastDate: date };
+    }
+  }
+  saveState();
+}
+
+function resetToday() {
+  if (confirm('Reset all of today\'s portions to zero?')) {
+    const d = getToday();
+    delete state.tracking[d];
+    saveState();
+    renderTodayTab();
+    showToast('Today\'s tracker reset');
+  }
+}
+
+// ========== FOOD GUIDE TAB ==========
+function renderFoodGuide() {
+  const list = document.getElementById('food-guide-list');
+  list.innerHTML = '';
+
+  FOOD_GROUPS.forEach(fg => {
+    const cat = document.createElement('div');
+    cat.className = 'food-cat';
+
+    const title = document.createElement('div');
+    title.className = 'food-cat-title';
+    title.innerHTML = `<span class="cat-icon">${fg.icon}</span><span>${fg.label}</span><span class="cat-cal">${fg.cal ? fg.cal + ' cal/serving' : '0 cal'}</span><span class="chevron">▼</span>`;
+    title.onclick = () => {
+      title.classList.toggle('open');
+      foodList.classList.toggle('open');
+    };
+
+    const foodList = document.createElement('div');
+    foodList.className = 'food-list';
+    fg.foods.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'food-item';
+      item.textContent = f;
+      foodList.appendChild(item);
+    });
+
+    cat.appendChild(title);
+    cat.appendChild(foodList);
+    list.appendChild(cat);
+  });
+}
+
+function renderMealPlan() {
+  const list = document.getElementById('meal-plan-list');
+  list.innerHTML = '';
+  MEAL_PLANS.forEach(day => {
+    const card = document.createElement('div');
+    card.className = 'day-plan';
+    card.innerHTML = `<h4>${day.day}</h4>` + day.meals.map(([type, desc]) =>
+      `<div class="meal-line"><span class="meal-type">${type}: </span>${desc}</div>`
+    ).join('');
+    list.appendChild(card);
+  });
+}
+
+// ========== BODY FAT TAB ==========
+function renderBFTab() {
+  const goal = state.bfGoal;
+  const log = [...state.bfLog].sort((a,b) => a.date.localeCompare(b.date));
+  const latest = log.length ? log[log.length-1] : null;
+
+  const currentEl = document.getElementById('bf-current-val');
+  if (latest) {
+    currentEl.innerHTML = `${latest.bf.toFixed(1)}<span>% BF</span>`;
+  } else {
+    currentEl.innerHTML = `--%<span>BF</span>`;
+  }
+
+  document.getElementById('bf-goal-display').textContent = goal ? goal.toFixed(1) + '%' : '--';
+
+  const deltaEl = document.getElementById('bf-delta-display');
+  if (latest && goal) {
+    const delta = latest.bf - goal;
+    deltaEl.textContent = (delta > 0 ? '+' : '') + delta.toFixed(1) + '% to goal';
+    deltaEl.className = 'bf-delta ' + (delta > 0 ? 'pos' : 'neg');
+  } else {
+    deltaEl.textContent = '';
+  }
+
+  // Set date input to today
+  document.getElementById('bf-date-input').value = getToday();
+  if (goal) document.getElementById('bf-goal-input').value = goal;
+
+  // Render log
+  if (log.length > 0) {
+    document.getElementById('bf-log-card').style.display = 'block';
+    const tbody = document.getElementById('bf-log-body');
+    tbody.innerHTML = '';
+    const sorted = [...log].reverse();
+    sorted.forEach((entry, i) => {
+      const prev = sorted[i+1];
+      const change = prev ? (entry.bf - prev.bf) : null;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${formatDate(entry.date)}</td>
+        <td>${entry.bf.toFixed(1)}%</td>
+        <td>${entry.weight ? entry.weight.toFixed(1) + ' lbs' : '--'}</td>
+        <td class="change ${change !== null ? (change < 0 ? 'neg' : 'pos') : ''}">${change !== null ? (change > 0 ? '+' : '') + change.toFixed(1) + '%' : '--'}</td>
+        <td><button class="delete-row-btn" onclick="deleteBFEntry('${entry.date}')">🗑</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Chart
+  if (log.length >= 2) {
+    document.getElementById('bf-chart-card').style.display = 'block';
+    renderBFChart(log);
+  }
+}
+
+function renderBFChart(log) {
+  const ctx = document.getElementById('bf-chart').getContext('2d');
+  if (bfChartInstance) bfChartInstance.destroy();
+
+  const labels = log.map(e => formatDate(e.date));
+  const data = log.map(e => e.bf);
+  const goalLine = state.bfGoal ? log.map(() => state.bfGoal) : null;
+
+  const datasets = [{
+    label: 'Body Fat %',
+    data: data,
+    borderColor: '#e53935',
+    backgroundColor: 'rgba(229,57,53,0.1)',
+    borderWidth: 2,
+    pointBackgroundColor: '#e53935',
+    pointRadius: 4,
+    fill: true,
+    tension: 0.3
+  }];
+
+  if (goalLine) {
+    datasets.push({
+      label: 'Goal',
+      data: goalLine,
+      borderColor: '#43a047',
+      borderWidth: 2,
+      borderDash: [6,3],
+      pointRadius: 0,
+      fill: false
+    });
+  }
+
+  bfChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#888', font: { size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#222' } },
+        y: { ticks: { color: '#666', font: { size: 10 }, callback: v => v + '%' }, grid: { color: '#222' } }
+      }
+    }
+  });
+}
+
+function logBF() {
+  const bf = parseFloat(document.getElementById('bf-input').value);
+  const weight = parseFloat(document.getElementById('weight-input').value) || null;
+  const date = document.getElementById('bf-date-input').value;
+
+  if (isNaN(bf) || bf < 3 || bf > 50) { showToast('⚠️ Enter a valid BF% (3–50)'); return; }
+  if (!date) { showToast('⚠️ Select a date'); return; }
+
+  // Remove existing entry for same date
+  state.bfLog = state.bfLog.filter(e => e.date !== date);
+  state.bfLog.push({ date, bf, weight });
+  state.bfLog.sort((a,b) => a.date.localeCompare(b.date));
+
+  saveState();
+  document.getElementById('bf-input').value = '';
+  document.getElementById('weight-input').value = '';
+  showToast('✅ Body fat logged!');
+  renderBFTab();
+}
+
+function saveGoal() {
+  const goal = parseFloat(document.getElementById('bf-goal-input').value);
+  if (isNaN(goal) || goal < 3 || goal > 40) { showToast('⚠️ Enter a valid goal (3–40%)'); return; }
+  state.bfGoal = goal;
+  saveState();
+  showToast('🎯 Goal set to ' + goal.toFixed(1) + '%!');
+  renderBFTab();
+}
+
+function deleteBFEntry(date) {
+  if (confirm('Delete entry for ' + formatDate(date) + '?')) {
+    state.bfLog = state.bfLog.filter(e => e.date !== date);
+    saveState();
+    renderBFTab();
+    showToast('Entry deleted');
+  }
+}
+
+// ========== COACH TAB ==========
+function updateCoachTips() {
+  const tips = COACH_TIPS[state.phase] || COACH_TIPS[1];
+
+  // Main tip
+  document.getElementById('coach-tip-main').textContent =
+    `At Level II, you\'re consuming ${calcTargetCal().toLocaleString()} calories per day. Eat every 2.5–3 hours to keep your metabolism fired. Never skip meals!`;
+
+  const list = document.getElementById('coach-tips-list');
+  list.innerHTML = '';
+  tips.forEach(tip => {
+    const div = document.createElement('div');
+    div.className = 'coach-tip';
+    div.innerHTML = `<div class="tip-label">${tip.label}</div><div class="tip-text">${tip.text}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function renderReminders() {
+  const list = document.getElementById('reminders-list');
+  list.innerHTML = '';
+  REMINDERS.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'reminder-item';
+    const isOn = state.reminders[r.id];
+    item.innerHTML = `
+      <div class="reminder-info">
+        <div class="r-name">${r.name}</div>
+        <div class="r-time">${r.time}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" ${isOn ? 'checked' : ''} onchange="toggleReminder('${r.id}', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function toggleReminder(id, on) {
+  state.reminders[id] = on;
+  saveState();
+  if (on) scheduleNotification(id);
+  showToast(on ? '🔔 Reminder on' : '🔕 Reminder off');
+}
+
+function requestNotifications() {
+  if ('Notification' in window) {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        showToast('✅ Notifications enabled!', 2500);
+        new Notification('P90X Tracker', {
+          body: 'Reminders are now active. Bring It!',
+          icon: ''
+        });
+      } else {
+        showToast('Notifications blocked — enable in browser settings', 3000);
+      }
+    });
+  } else {
+    showToast('Notifications not supported in this browser');
+  }
+}
+
+function scheduleNotification(id) {
+  // Simple notification demo — real scheduling requires a service worker
+  if (Notification.permission === 'granted') {
+    const r = REMINDERS.find(r => r.id === id);
+    if (r) {
+      setTimeout(() => {
+        new Notification('P90X Reminder', { body: r.name + ' — Time to fuel up!' });
+      }, 3000);
+    }
+  }
+}
+
+// ========== SETTINGS ==========
+function saveBodyWeight() {
+  const w = parseFloat(document.getElementById('body-weight-input').value);
+  if (isNaN(w) || w < 80 || w > 400) { showToast('⚠️ Enter a valid weight'); return; }
+  state.bodyWeight = w;
+  saveState();
+  updateRMRDisplay(w);
+  showToast('✅ Weight saved');
+}
+
+function updateRMRDisplay(w) {
+  if (!w) return;
+  const rmr = Math.round(w * 10);
+  const dab = Math.round(rmr * 0.2);
+  const total = rmr + dab + 600;
+  document.getElementById('rmr-display').innerHTML =
+    `RMR: ${rmr.toLocaleString()} + DAB: ${dab} + Exercise: 600 = <b style="color:var(--orange)">${total.toLocaleString()} cal/day</b>`;
+}
+
+// ========== HEADER ==========
+function updateHeader() {
+  const now = new Date();
+  const opts = { weekday:'short', month:'short', day:'numeric' };
+  document.getElementById('header-date').textContent = now.toLocaleDateString('en-US', opts);
+
+  const names = { 1:'Fat Shredder · Level II', 2:'Energy Booster · Level II', 3:'Endurance Maximizer · Level II' };
+  document.getElementById('phase-name-label').textContent = names[state.phase];
+
+  const btns = document.querySelectorAll('.phase-btn');
+  btns.forEach((btn, i) => btn.classList.toggle('active', i+1 === state.phase));
+}
+
+// ========== MODAL ==========
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+}
+
+// ========== INIT ==========
+// ========== GOOGLE SHEETS SYNC ==========
+function saveScriptUrl() {
+  const url = document.getElementById('script-url-input').value.trim();
+  if (!url.startsWith('https://')) { showToast('⚠️ Enter a valid https:// URL'); return; }
+  state.scriptUrl = url;
+  saveState();
+  updateSyncStatus();
+  showToast('✅ Script URL saved!');
+}
+
+function updateSyncStatus() {
+  const el = document.getElementById('sync-status-text');
+  if (!el) return;
+  if (!state.scriptUrl) {
+    el.innerHTML = 'No script URL saved. See <b>P90X_Apps_Script.gs</b> for setup.';
+  } else if (state.lastSync) {
+    const d = new Date(state.lastSync);
+    el.textContent = '✅ Last synced: ' + d.toLocaleString();
+  } else {
+    el.textContent = 'URL saved. Tap "Sync to Sheet" to push your data.';
+  }
+  if (state.scriptUrl) {
+    document.getElementById('script-url-input').value = state.scriptUrl;
+  }
+}
+
+function buildSyncPayload() {
+  const phaseNames = { 1:'Fat Shredder', 2:'Energy Booster', 3:'Endurance Maximizer' };
+
+  // Enrich tracking with phase name + calculated fields
+  const enriched = {};
+  Object.entries(state.tracking).forEach(([date, d]) => {
+    let cal = 0;
+    FOOD_GROUPS.forEach(fg => { if (fg.key !== 'water') cal += (d[fg.key] || 0) * fg.cal; });
+    const phase = PHASES[state.phase];
+    let done = 0, total = Object.keys(phase.groups).length;
+    Object.keys(phase.groups).forEach(k => { if ((d[k]||0) >= phase.groups[k]) done++; });
+    enriched[date] = {
+      ...d,
+      phase: state.phase,
+      phaseName: phaseNames[state.phase],
+      calories: cal,
+      completion: total ? Math.round(done/total*100) : 0
+    };
+  });
+
+  return {
+    action: 'sync',
+    tracking: enriched,
+    bfLog: state.bfLog,
+    settings: {
+      phase: state.phase,
+      bfGoal: state.bfGoal,
+      bodyWeight: state.bodyWeight,
+      level: 'II'
+    }
+  };
+}
+
+async function syncToSheet() {
+  if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ Syncing…';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(state.scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify(buildSyncPayload())
+    });
+    const json = await resp.json();
+    if (json.success) {
+      state.lastSync = json.syncedAt || new Date().toISOString();
+      saveState();
+      updateSyncStatus();
+      showToast('✅ Synced to Google Sheets!', 2500);
+    } else {
+      showToast('⚠️ Sync error: ' + (json.error || 'Unknown'), 3000);
+    }
+  } catch (err) {
+    showToast('❌ Network error — check URL & connection', 3000);
+  } finally {
+    btn.textContent = '☁️ Sync to Sheet';
+    btn.disabled = false;
+  }
+}
+
+async function loadFromSheet() {
+  if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
+  if (!confirm('Load data from Google Sheets? This will merge with your local data.')) return;
+  const btn = document.getElementById('load-btn');
+  btn.textContent = '⏳ Loading…';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(state.scriptUrl + '?action=getData');
+    const json = await resp.json();
+
+    // Merge tracking (sheet wins for existing dates)
+    if (json.tracking) {
+      Object.entries(json.tracking).forEach(([date, d]) => {
+        state.tracking[date] = { ...state.tracking[date], ...d };
+      });
+    }
+    // Merge BF log (add entries not already present)
+    if (json.bfLog && json.bfLog.length) {
+      const existing = new Set(state.bfLog.map(e => e.date));
+      json.bfLog.forEach(e => { if (!existing.has(e.date)) state.bfLog.push(e); });
+      state.bfLog.sort((a,b) => a.date.localeCompare(b.date));
+    }
+    // Restore settings
+    if (json.settings) {
+      if (json.settings.bfGoal)     state.bfGoal     = parseFloat(json.settings.bfGoal);
+      if (json.settings.bodyWeight) state.bodyWeight  = parseFloat(json.settings.bodyWeight);
+      if (json.settings.phase)      state.phase       = parseInt(json.settings.phase);
+    }
+
+    state.lastSync = new Date().toISOString();
+    saveState();
+    updateSyncStatus();
+    renderTodayTab();
+    showToast('✅ Data loaded from Google Sheets!', 2500);
+  } catch (err) {
+    showToast('❌ Load failed — check URL & connection', 3000);
+  } finally {
+    btn.textContent = '📥 Load from Sheet';
+    btn.disabled = false;
+  }
+}
+
+// ========== INIT ==========
+function init() {
+  updateHeader();
+  renderTodayTab();
+  renderFoodGuide();
+  renderMealPlan();
+  updateCoachTips();
+  renderReminders();
+  updateSyncStatus();
+  renderQuickButtons();
+
+  if (state.bodyWeight) {
+    document.getElementById('body-weight-input').value = state.bodyWeight;
+    updateRMRDisplay(state.bodyWeight);
+  }
+}
+
+// ========== CAFFEINE TRACKER ==========
+const CAF_QUICK = [
+  { label:'Pre-Workout', mg: 150 },
+  { label:'Coffee', mg: 95 },
+  { label:'Espresso', mg: 63 },
+  { label:'Green Tea', mg: 28 },
+  { label:'Black Tea', mg: 47 },
+  { label:'Energy Drink', mg: 120 }
+];
+
+function getTodayCafLog() {
+  const d = getToday();
+  if (!state.caffeineLog[d]) state.caffeineLog[d] = [];
+  return state.caffeineLog[d];
+}
+
+function getTodayCafTotal() {
+  return getTodayCafLog().reduce((sum, e) => sum + e.mg, 0);
+}
+
+function updateHomeCafCard() {
+  const total = getTodayCafTotal();
+  const goal  = state.caffeineGoal || 270;
+  const pct   = Math.min(total / goal * 100, 110);
+
+  // Total number + color
+  const totalEl = document.getElementById('home-caf-total');
+  if (!totalEl) return;
+  totalEl.textContent = total;
+  totalEl.style.color = total > goal ? 'var(--red)' : total > goal * 0.75 ? 'var(--orange)' : 'var(--text)';
+
+  // Bar
+  const bar = document.getElementById('home-caf-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = total > goal
+    ? 'var(--red)'
+    : total > goal * 0.75
+    ? 'linear-gradient(90deg,#43a047,#ff6f00)'
+    : 'linear-gradient(90deg,#43a047,#66bb6a)';
+
+  // Status text
+  document.getElementById('home-caf-limit').textContent  = 'Limit: ' + goal + 'mg';
+  const statusEl = document.getElementById('home-caf-status');
+  if (total === 0)           statusEl.textContent = 'None yet ✅';
+  else if (total <= goal)    statusEl.textContent = (goal - total) + 'mg remaining';
+  else                       statusEl.textContent = (total - goal) + 'mg over limit ⚠️';
+  statusEl.style.color = total > goal ? 'var(--red)' : total > goal * 0.75 ? 'var(--orange)' : 'var(--muted)';
+
+  // Taper banner
+  const banner = document.getElementById('home-taper-banner');
+  if (state.caffeineTaper && state.caffeineTaper.weeks && state.caffeineTaper.weeks.length) {
+    banner.style.display = 'block';
+    const { weeks, current, target } = state.caffeineTaper;
+    const startDate  = new Date(state.caffeineTaper.createdAt + 'T12:00:00');
+    const daysPassed = Math.floor((new Date(getToday() + 'T12:00:00') - startDate) / (1000*60*60*24));
+    const wi         = Math.max(0, Math.min(Math.floor(daysPassed / 7), weeks.length - 1));
+    const week       = weeks[wi];
+
+    document.getElementById('home-taper-week-label').textContent  = `TAPER — WEEK ${week.week} OF ${weeks.length}`;
+    document.getElementById('home-taper-detail').textContent      = `This week's limit: ${week.limit}mg/day`;
+
+    const remaining = week.limit - total;
+    const remEl = document.getElementById('home-taper-remaining');
+    remEl.textContent   = Math.max(0, remaining);
+    remEl.style.color   = remaining < 0 ? 'var(--red)' : remaining < 50 ? 'var(--orange)' : 'var(--green)';
+
+    // Overall taper progress bar
+    const overallPct = weeks.length > 1
+      ? Math.round(wi / (weeks.length - 1) * 100)
+      : 100;
+    document.getElementById('home-taper-progress').style.width = overallPct + '%';
+    document.getElementById('home-taper-start-mg').textContent = current + 'mg start';
+    document.getElementById('home-taper-end-mg').textContent   = target + 'mg goal';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function renderCaffeineTab() {
+  // Settings fields
+  if (state.caffeineGoal)      document.getElementById('caf-goal-input').value      = state.caffeineGoal;
+  if (state.caffeinePreworkout) document.getElementById('caf-preworkout-input').value = state.caffeinePreworkout;
+
+  // Default time to current hour
+  const now = new Date();
+  document.getElementById('caf-time').value =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  // Pre-fill preworkout mg if set
+  if (state.caffeinePreworkout) {
+    const opt = document.getElementById('caf-source');
+    // Update quick button
+  }
+
+  renderQuickButtons();
+  updateCafGauge();
+  renderCafLog();
+  renderTaperPlan();
+}
+
+function renderQuickButtons() {
+  const wrap = document.getElementById('caf-quick-btns');
+  wrap.innerHTML = '';
+  const items = [...CAF_QUICK];
+  if (state.caffeinePreworkout) {
+    items[0] = { label: 'Pre-Workout', mg: state.caffeinePreworkout };
+  }
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;';
+    btn.innerHTML = `${item.label} <span style="color:var(--orange)">${item.mg}mg</span>`;
+    btn.onclick = () => quickLog(item.label, item.mg);
+    wrap.appendChild(btn);
+  });
+}
+
+function quickLog(source, mg) {
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const log = getTodayCafLog();
+  log.push({ source, mg, time });
+  saveState();
+  updateCafGauge();
+  renderCafLog();
+  updateHomeCafCard();
+  checkCafWarning(getTodayCafTotal());
+  showToast(`☕ +${mg}mg ${source} logged`);
+}
+
+function logCaffeine() {
+  const source = document.getElementById('caf-source').value;
+  const mg     = parseInt(document.getElementById('caf-mg').value);
+  const time   = document.getElementById('caf-time').value;
+  if (!mg || mg < 1) { showToast('⚠️ Enter caffeine amount in mg'); return; }
+
+  const log = getTodayCafLog();
+  log.push({ source, mg, time: time || '00:00' });
+  saveState();
+  document.getElementById('caf-mg').value = '';
+  updateCafGauge();
+  renderCafLog();
+  updateHomeCafCard();
+  checkCafWarning(getTodayCafTotal());
+  showToast(`☕ +${mg}mg ${source} logged`);
+}
+
+function updateCafGauge() {
+  const total = getTodayCafTotal();
+  const goal  = state.caffeineGoal || 400;
+  const pct   = Math.min(total / goal * 100, 110);
+
+  document.getElementById('caf-today-total').textContent = total;
+  document.getElementById('caf-goal-label').textContent  = 'Goal: ' + goal + 'mg';
+
+  const fill  = document.getElementById('caf-gauge-fill');
+  const label = document.getElementById('caf-gauge-label');
+  fill.style.width = pct + '%';
+
+  if (total === 0) {
+    fill.style.background = 'linear-gradient(90deg,#43a047,#66bb6a)';
+    label.textContent = 'Nothing yet today ✅';
+    label.style.color = 'var(--green)';
+  } else if (total <= goal * 0.5) {
+    fill.style.background = 'linear-gradient(90deg,#43a047,#66bb6a)';
+    label.textContent = (goal - total) + 'mg remaining — looking good!';
+    label.style.color = 'var(--green)';
+  } else if (total <= goal) {
+    fill.style.background = 'linear-gradient(90deg,#43a047,#ff6f00)';
+    label.textContent = (goal - total) + 'mg remaining today';
+    label.style.color = 'var(--orange)';
+  } else {
+    fill.style.background = 'var(--red)';
+    label.textContent = (total - goal) + 'mg over your daily goal';
+    label.style.color = 'var(--red)';
+  }
+
+  // Color the total number
+  const numEl = document.getElementById('caf-today-total');
+  numEl.style.color = total > goal ? 'var(--red)' : total > goal * 0.75 ? 'var(--orange)' : 'var(--text)';
+}
+
+function renderCafLog() {
+  const log  = getTodayCafLog();
+  const card = document.getElementById('caf-log-card');
+  const list = document.getElementById('caf-log-list');
+
+  if (!log.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  list.innerHTML = '';
+
+  [...log].reverse().forEach((entry, idx) => {
+    const realIdx = log.length - 1 - idx;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1e1e1e;';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">☕</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;">${entry.source}</div>
+          <div style="font-size:11px;color:var(--muted);">${entry.time}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:15px;font-weight:800;color:var(--orange);">${entry.mg}mg</span>
+        <button onclick="deleteCafEntry(${realIdx})" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;">🗑</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function deleteCafEntry(idx) {
+  const log = getTodayCafLog();
+  log.splice(idx, 1);
+  saveState();
+  updateCafGauge();
+  renderCafLog();
+}
+
+function checkCafWarning(total) {
+  if (total >= 400) showToast('⚠️ 400mg+ — consider stopping for today', 3000);
+  else if (total >= 300 && state.caffeineGoal < 300) showToast('📊 Above your daily goal', 2000);
+}
+
+function buildTaperPlan() {
+  const current    = parseInt(document.getElementById('caf-current-input').value);
+  const target     = parseInt(document.getElementById('caf-target-input').value);
+  const reduceRate = parseInt(document.getElementById('caf-reduce-rate').value);
+
+  if (isNaN(current) || isNaN(target) || current <= target) {
+    showToast('⚠️ Enter valid current and target amounts'); return;
+  }
+
+  const weeks = [];
+  let level   = current;
+  let weekNum = 1;
+  const startDate = new Date();
+
+  while (level > target) {
+    const weekStart = new Date(startDate);
+    weekStart.setDate(startDate.getDate() + (weekNum - 1) * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const nextLevel = Math.max(level - reduceRate, target);
+    weeks.push({
+      week: weekNum,
+      start: weekStart.toLocaleDateString('en-US', { month:'short', day:'numeric' }),
+      end:   weekEnd.toLocaleDateString('en-US',   { month:'short', day:'numeric' }),
+      limit: level,
+      next:  nextLevel,
+      cut:   level - nextLevel
+    });
+    level = nextLevel;
+    weekNum++;
+    if (weekNum > 52) break;
+  }
+
+  state.caffeineTaper = { current, target, reduceRate, weeks, createdAt: getToday() };
+  state.caffeineGoal  = current;
+  saveState();
+  renderTaperPlan();
+  updateCafGauge();
+  updateHomeCafCard();
+  showToast(`✅ ${weeks.length}-week plan created!`);
+}
+
+function renderTaperPlan() {
+  const el = document.getElementById('taper-plan-output');
+  if (!state.caffeineTaper || !state.caffeineTaper.weeks) { el.innerHTML = ''; return; }
+
+  const { weeks, current, target } = state.caffeineTaper;
+  const today      = getToday();
+  const startDate  = new Date(state.caffeineTaper.createdAt + 'T12:00:00');
+  const daysPassed = Math.floor((new Date(today + 'T12:00:00') - startDate) / (1000*60*60*24));
+  const currentWeek = Math.floor(daysPassed / 7);
+
+  let html = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Tapering from <b style="color:var(--text)">${current}mg</b> → <b style="color:var(--green)">${target}mg</b> over <b style="color:var(--text)">${weeks.length} weeks</b></div>`;
+
+  weeks.forEach((w, i) => {
+    const isPast    = i < currentWeek;
+    const isCurrent = i === currentWeek;
+    const pct       = 100 - Math.round((w.limit - target) / (current - target) * 100);
+
+    const bg     = isCurrent ? 'background:linear-gradient(135deg,#001a0a,#002210);border:1px solid #2e7d32;'
+                 : isPast    ? 'background:#111;border:1px solid #1a1a1a;opacity:0.6;'
+                 :             'background:var(--card2);border:1px solid #1e1e1e;';
+
+    html += `
+      <div style="${bg}border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:${isCurrent ? 'var(--green)' : 'var(--muted)'}">
+              ${isCurrent ? '▶ CURRENT — ' : isPast ? '✅ ' : ''}WEEK ${w.week}
+            </span>
+            <span style="font-size:10px;color:var(--muted);margin-left:6px;">${w.start} – ${w.end}</span>
+          </div>
+          <span style="font-size:16px;font-weight:900;color:${isCurrent ? 'var(--green)' : 'var(--text)'};">${w.limit}mg</span>
+        </div>
+        <div style="height:4px;background:#1a1a1a;border-radius:2px;margin-top:6px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${isCurrent ? 'var(--green)' : '#333'};border-radius:2px;"></div>
+        </div>
+        ${isCurrent ? `<div style="font-size:11px;color:#aaa;margin-top:6px;">Reduce by ${w.cut}mg this week → next week's limit: <b style="color:var(--text)">${w.next}mg</b></div>` : ''}
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function saveCaffeineSettings() {
+  const goal      = parseInt(document.getElementById('caf-goal-input').value);
+  const preworkout = parseInt(document.getElementById('caf-preworkout-input').value);
+
+  if (!isNaN(goal) && goal >= 0)       state.caffeineGoal      = goal;
+  if (!isNaN(preworkout) && preworkout >= 0) state.caffeinePreworkout = preworkout;
+
+  saveState();
+  renderQuickButtons();
+  updateCafGauge();
+  updateHomeCafCard();
+  showToast('✅ Caffeine settings saved!');
+}
+
+// Also sync caffeine when pushing to Sheets
+const _origBuildPayload = buildSyncPayload;
+// (caffeine data included via state already serialised in saveState)
+
+// Run
+init();
+</script>
+</body>
+</html>
