@@ -1,4 +1,4 @@
-const CACHE = 'p90x-v1';
+const CACHE = 'p90x-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -19,8 +19,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for the Apps Script sync URL; cache-first for everything else
-  if (e.request.url.includes('script.google.com')) return;
+  // Pass through anything that isn't a same-origin or CDN asset
+  // Specifically: Google APIs, Apps Script, and googleusercontent redirects must never be intercepted
+  const url = e.request.url;
+  if (url.includes('google.com') || url.includes('googleusercontent.com')) return;
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       const clone = res.clone();
