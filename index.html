@@ -1625,6 +1625,23 @@ async function syncToSheet() {
   }
 }
 
+function gasJsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = 'p90x_cb_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 15000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+    }
+    window[cb] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('load failed')); };
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(script);
+  });
+}
+
 async function loadFromSheet() {
   if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
   if (!confirm('Load data from Google Sheets? This will merge with your local data.')) return;
@@ -1632,8 +1649,7 @@ async function loadFromSheet() {
   btn.textContent = '⏳ Loading…';
   btn.disabled = true;
   try {
-    const resp = await fetch(state.scriptUrl, { mode: 'cors' });
-    const json = await resp.json();
+    const json = await gasJsonp(state.scriptUrl);
 
     // Merge tracking (sheet wins for existing dates)
     if (json.tracking) {
