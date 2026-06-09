@@ -1601,8 +1601,7 @@ async function syncToSheet() {
     };
     const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
     addAuditEntry('SYNC →', 'pending', 'Sending to: ' + state.scriptUrl.slice(0, 60) + '…');
-    const resp = await fetch(url);
-    const json = await resp.json();
+    const json = await gasJsonp(url);
     if (json.success) {
       state.lastSync = json.syncedAt || new Date().toISOString();
       saveState();
