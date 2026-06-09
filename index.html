@@ -257,6 +257,28 @@
   .swap-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #1e1e1e; font-size: 13px; color: #ccc; }
   .swap-item:last-child { border-bottom: none; }
   .swap-icon { font-size: 16px; }
+
+  /* DATE NAV */
+  .date-nav { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .date-nav-btn { background: #2a2a2a; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 16px; width: 28px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+  .date-nav-btn:active { background: #3a3a3a; }
+  .date-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .date-nav-label { font-size: 11px; font-weight: 700; color: var(--text); min-width: 80px; text-align: center; cursor: pointer; }
+  .date-nav-label.is-today { color: var(--red); }
+  .date-nav-today-btn { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; cursor: pointer; }
+  .date-nav-today-btn.hidden { visibility: hidden; }
+
+  /* HISTORY TAB */
+  .hist-chart-wrap { position: relative; height: 160px; margin-bottom: 4px; }
+  .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .hist-table th { color: var(--muted); font-size: 10px; letter-spacing: 0.8px; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+  .hist-table td { padding: 9px 8px; border-bottom: 1px solid #1e1e1e; color: var(--text); vertical-align: middle; }
+  .hist-table tr:last-child td { border-bottom: none; }
+  .hist-table tr { cursor: pointer; transition: background 0.15s; }
+  .hist-table tr:hover td, .hist-table tr:active td { background: #1e1e1e; }
+  .hist-pct-bar { height: 4px; border-radius: 2px; background: #2a2a2a; overflow: hidden; margin-top: 3px; }
+  .hist-pct-fill { height: 100%; border-radius: 2px; }
+  .hist-empty { text-align: center; padding: 32px 0; color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -264,7 +286,12 @@
 <div id="header">
   <div>
     <h1>P<span>90</span>X</h1>
-    <div class="date-label" id="header-date"></div>
+    <div class="date-nav" id="date-nav">
+      <button class="date-nav-btn" id="date-prev" onclick="shiftViewDate(-1)">‹</button>
+      <div class="date-nav-label is-today" id="date-nav-label" onclick="jumpToToday()">Today</div>
+      <button class="date-nav-btn" id="date-next" onclick="shiftViewDate(1)" disabled>›</button>
+      <button class="date-nav-today-btn hidden" id="date-today-btn" onclick="jumpToToday()">TODAY</button>
+    </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
     <div class="phase-selector" id="phase-selector">
@@ -315,7 +342,7 @@
     </div>
 
     <!-- CAFFEINE HOME CARD -->
-    <div class="card" id="home-caf-card" onclick="switchTab('caffeine', document.querySelectorAll('.nav-btn')[4])" style="cursor:pointer;">
+    <div class="card" id="home-caf-card" onclick="switchTab('caffeine', document.querySelectorAll('.nav-btn')[5])" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div class="card-title" style="margin-bottom:0;">☕ Caffeine Today</div>
         <span style="font-size:11px;color:var(--muted);">Tap to log →</span>
@@ -562,6 +589,18 @@
     </div>
   </div>
 
+  <!-- TAB: HISTORY -->
+  <div class="tab-panel" id="tab-history">
+    <div class="card">
+      <div class="card-title">Completion &amp; Calories — Last 30 Days</div>
+      <div class="hist-chart-wrap"><canvas id="hist-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Daily Log</div>
+      <div id="hist-table-wrap"></div>
+    </div>
+  </div>
+
   <!-- TAB: CAFFEINE -->
   <div class="tab-panel" id="tab-caffeine">
 
@@ -715,8 +754,11 @@
   <button class="nav-btn" onclick="switchTab('guide', this)">
     <span class="icon">🍽️</span>GUIDE
   </button>
+  <button class="nav-btn" onclick="switchTab('history', this)">
+    <span class="icon">📈</span>HISTORY
+  </button>
   <button class="nav-btn" onclick="switchTab('bf', this)">
-    <span class="icon">📊</span>BODY FAT
+    <span class="icon">⚖️</span>BODY FAT
   </button>
   <button class="nav-btn" onclick="switchTab('coach', this)">
     <span class="icon">💪</span>COACH
@@ -883,8 +925,12 @@ if (!state.reminders) {
   REMINDERS.forEach(r => { state.reminders[r.id] = r.default; });
 }
 
-// Chart instance
+// Chart instances
 let bfChartInstance = null;
+let histChartInstance = null;
+
+// View date (not persisted — always resets to today on load)
+let viewDate = new Date().toISOString().split('T')[0];
 
 // ========== HELPERS ==========
 function saveState() {
@@ -906,12 +952,48 @@ function saveState() {
 function getToday() { return new Date().toISOString().split('T')[0]; }
 
 function getTodayTracking() {
-  const d = getToday();
-  if (!state.tracking[d]) {
-    state.tracking[d] = {};
-    FOOD_GROUPS.forEach(g => { state.tracking[d][g.key] = 0; });
+  if (!state.tracking[viewDate]) {
+    state.tracking[viewDate] = {};
+    FOOD_GROUPS.forEach(g => { state.tracking[viewDate][g.key] = 0; });
   }
-  return state.tracking[d];
+  return state.tracking[viewDate];
+}
+
+// ========== DATE NAVIGATION ==========
+function updateDateNav() {
+  const today = getToday();
+  const isToday = viewDate === today;
+  const label = document.getElementById('date-nav-label');
+  const nextBtn = document.getElementById('date-next');
+  const todayBtn = document.getElementById('date-today-btn');
+
+  if (isToday) {
+    label.textContent = 'Today';
+    label.classList.add('is-today');
+  } else {
+    const dt = new Date(viewDate + 'T12:00:00');
+    label.textContent = dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    label.classList.remove('is-today');
+  }
+  nextBtn.disabled = isToday;
+  todayBtn.classList.toggle('hidden', isToday);
+}
+
+function shiftViewDate(delta) {
+  const today = getToday();
+  const d = new Date(viewDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  const newDate = d.toISOString().split('T')[0];
+  if (newDate > today) return;
+  viewDate = newDate;
+  updateDateNav();
+  renderTodayTab();
+}
+
+function jumpToToday() {
+  viewDate = getToday();
+  updateDateNav();
+  renderTodayTab();
 }
 
 function calcCalories(tracking) {
@@ -974,8 +1056,9 @@ function switchTab(tab, btn) {
   document.getElementById('tab-' + tab).classList.add('active');
   btn.classList.add('active');
   document.getElementById('app').scrollTop = 0;
-  if (tab === 'bf') renderBFTab();
+  if (tab === 'bf')      renderBFTab();
   if (tab === 'caffeine') renderCaffeineTab();
+  if (tab === 'history') renderHistoryTab();
 }
 
 // ========== TODAY TAB ==========
@@ -1059,6 +1142,10 @@ function updateSummary() {
   const target = calcTargetCal();
   const comp = calcCompletion(tracking);
   const water = tracking['water'] || 0;
+  const isToday = viewDate === getToday();
+
+  document.querySelector('#summary-card .card-title').textContent =
+    isToday ? "Today's Summary" : formatDate(viewDate) + ' Summary';
 
   document.getElementById('sum-cal').textContent = cal.toLocaleString();
   document.getElementById('sum-cal').className = 'val' + (cal >= target ? ' good' : '');
@@ -1129,12 +1216,13 @@ function markStreakDay(date) {
 }
 
 function resetToday() {
-  if (confirm('Reset all of today\'s portions to zero?')) {
-    const d = getToday();
-    delete state.tracking[d];
+  const isToday = viewDate === getToday();
+  const label = isToday ? "today's" : formatDate(viewDate) + "'s";
+  if (confirm(`Reset all of ${label} portions to zero?`)) {
+    delete state.tracking[viewDate];
     saveState();
     renderTodayTab();
-    showToast('Today\'s tracker reset');
+    showToast('Tracker reset');
   }
 }
 
@@ -1424,15 +1512,11 @@ function updateRMRDisplay(w) {
 
 // ========== HEADER ==========
 function updateHeader() {
-  const now = new Date();
-  const opts = { weekday:'short', month:'short', day:'numeric' };
-  document.getElementById('header-date').textContent = now.toLocaleDateString('en-US', opts);
-
   const names = { 1:'Fat Shredder · Level II', 2:'Energy Booster · Level II', 3:'Endurance Maximizer · Level II' };
   document.getElementById('phase-name-label').textContent = names[state.phase];
-
   const btns = document.querySelectorAll('.phase-btn');
   btns.forEach((btn, i) => btn.classList.toggle('active', i+1 === state.phase));
+  updateDateNav();
 }
 
 // ========== MODAL ==========
@@ -1921,6 +2005,133 @@ function saveCaffeineSettings() {
   updateCafGauge();
   updateHomeCafCard();
   showToast('✅ Caffeine settings saved!');
+}
+
+// ========== HISTORY TAB ==========
+function renderHistoryTab() {
+  const today = getToday();
+  // Build last 30 days array, newest first
+  const days = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+
+  const tracked = days.filter(d => state.tracking[d]);
+
+  // ── Chart ──
+  const chartDays = days.slice().reverse(); // oldest → newest for chart
+  const labels = chartDays.map(d => {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  });
+  const pctData  = chartDays.map(d => {
+    if (!state.tracking[d]) return null;
+    return calcCompletionForDate(state.tracking[d]).pct;
+  });
+  const calData  = chartDays.map(d => {
+    if (!state.tracking[d]) return null;
+    return calcCalories(state.tracking[d]);
+  });
+
+  const ctx = document.getElementById('hist-chart').getContext('2d');
+  if (histChartInstance) histChartInstance.destroy();
+  histChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Completion %',
+          data: pctData,
+          borderColor: '#e53935',
+          backgroundColor: 'rgba(229,57,53,0.15)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#e53935',
+          tension: 0.3,
+          yAxisID: 'yPct',
+          spanGaps: true
+        },
+        {
+          label: 'Calories',
+          data: calData,
+          backgroundColor: 'rgba(255,111,0,0.5)',
+          borderColor: '#ff6f00',
+          borderWidth: 1,
+          borderRadius: 3,
+          yAxisID: 'yCal'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#888', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#555', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#1e1e1e' } },
+        yPct: {
+          position: 'left',
+          min: 0, max: 100,
+          ticks: { color: '#e53935', font: { size: 9 }, callback: v => v + '%' },
+          grid: { color: '#1e1e1e' }
+        },
+        yCal: {
+          position: 'right',
+          ticks: { color: '#ff6f00', font: { size: 9 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // ── Table ──
+  const wrap = document.getElementById('hist-table-wrap');
+  if (!tracked.length) {
+    wrap.innerHTML = '<div class="hist-empty">No entries yet — start logging on the Today tab!</div>';
+    return;
+  }
+
+  const targetCal = calcTargetCal();
+  let html = `<table class="hist-table">
+    <thead><tr><th>Date</th><th>Completion</th><th>Calories</th><th>Water</th></tr></thead>
+    <tbody>`;
+
+  tracked.forEach(d => {
+    const t = state.tracking[d];
+    const comp = calcCompletionForDate(t);
+    const cal  = calcCalories(t);
+    const water = t.water || 0;
+    const isToday = d === today;
+    const dt = new Date(d + 'T12:00:00');
+    const dateLabel = isToday ? 'Today' : dt.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const pctColor = comp.pct >= 100 ? 'var(--green)' : comp.pct >= 80 ? 'var(--orange)' : 'var(--red)';
+    const calColor = cal >= targetCal ? 'var(--green)' : cal >= targetCal * 0.8 ? 'var(--orange)' : 'var(--muted)';
+
+    html += `<tr onclick="goToDate('${d}')">
+      <td style="font-weight:700;${isToday ? 'color:var(--red)' : ''}">${dateLabel}</td>
+      <td>
+        <div style="font-weight:800;color:${pctColor}">${comp.pct}%</div>
+        <div class="hist-pct-bar"><div class="hist-pct-fill" style="width:${comp.pct}%;background:${pctColor}"></div></div>
+      </td>
+      <td style="font-weight:700;color:${calColor}">${cal.toLocaleString()}</td>
+      <td style="color:var(--muted)">${water}/8 💧</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function goToDate(d) {
+  viewDate = d;
+  updateDateNav();
+  // Switch to Today tab
+  const todayBtn = document.querySelector('.nav-btn');
+  switchTab('today', todayBtn);
 }
 
 // Also sync caffeine when pushing to Sheets
