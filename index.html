@@ -398,6 +398,52 @@
   <!-- TAB: GUIDE -->
   <div class="tab-panel" id="tab-guide">
     <div class="card">
+      <div class="card-title">Your Phases · Level II</div>
+      <div class="phase-card p1">
+        <h3 style="color:#ff6b6b">⚡ Phase I — Fat Shredder</h3>
+        <p>High protein, low carb. Build lean muscle while burning fat. Your body becomes a fat-burning machine. This is the hardest phase — dig deep!</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×7</span><span class="portion-pill">🥛 Dairy ×3</span>
+          <span class="portion-pill">🍎 Fruit ×1</span><span class="portion-pill">🥦 Veg ×4</span>
+          <span class="portion-pill">🥑 Fat ×1</span><span class="portion-pill">🍚 Carb ×1</span>
+          <span class="portion-pill">🍫 Snacks ×3</span><span class="portion-pill">🧂 Cond ×2</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~60% protein</div>
+      </div>
+      <div class="phase-card p2">
+        <h3 style="color:#81c784">🚀 Phase II — Energy Booster</h3>
+        <p>Balanced macros. Add more carbs to fuel increasingly intense workouts. Your energy levels should noticeably improve in this phase.</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×6</span><span class="portion-pill">🥛 Dairy ×2</span>
+          <span class="portion-pill">🍎 Fruit ×1</span><span class="portion-pill">🥦 Veg ×3</span>
+          <span class="portion-pill">🥑 Fat ×1</span><span class="portion-pill">🍚 Carb ×3</span>
+          <span class="portion-pill">🍫 Snacks ×3</span><span class="portion-pill">🧂 Cond ×2</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~40% protein, 40% carb</div>
+      </div>
+      <div class="phase-card p3">
+        <h3 style="color:#64b5f6">🏆 Phase III — Endurance Maximizer</h3>
+        <p>Carb-heavy, lower protein. Fuel peak performance. Your body is now lean enough to maximize carbohydrates for elite-level endurance.</p>
+        <div class="phase-portions">
+          <span class="portion-pill">🥩 Protein ×3</span><span class="portion-pill">🥛 Dairy ×1</span>
+          <span class="portion-pill">🍎 Fruit ×3</span><span class="portion-pill">🥦 Veg ×3</span>
+          <span class="portion-pill">🥑 Fat ×1</span><span class="portion-pill">🍚 Carb ×4</span>
+          <span class="portion-pill">🍫 Snacks ×3</span><span class="portion-pill">🧂 Cond ×3</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~20% protein, 60% carb</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Daily Tips</div>
+      <div class="coach-tip">
+        <div class="tip-label">🔑 Key Rule</div>
+        <div class="tip-text" id="coach-tip-main"></div>
+      </div>
+      <div id="coach-tips-list"></div>
+    </div>
+
+    <div class="card">
       <div class="section-title">Food Reference</div>
       <div class="section-sub">Tap a category to expand • Level II</div>
       <div id="food-guide-list"></div>
@@ -484,69 +530,8 @@
     </div>
   </div>
 
-  <!-- TAB: COACH -->
+  <!-- TAB: ADMIN -->
   <div class="tab-panel" id="tab-coach">
-    <div class="card">
-      <div class="card-title">Your Phases · Level II</div>
-
-      <div class="phase-card p1">
-        <h3 style="color:#ff6b6b">⚡ Phase I — Fat Shredder</h3>
-        <p>High protein, low carb. Build lean muscle while burning fat. Your body becomes a fat-burning machine. This is the hardest phase — dig deep!</p>
-        <div class="phase-portions">
-          <span class="portion-pill">🥩 Protein ×7</span>
-          <span class="portion-pill">🥛 Dairy ×3</span>
-          <span class="portion-pill">🍎 Fruit ×1</span>
-          <span class="portion-pill">🥦 Veg ×4</span>
-          <span class="portion-pill">🥑 Fat ×1</span>
-          <span class="portion-pill">🍚 Carb ×1</span>
-          <span class="portion-pill">🍫 Snacks ×3</span>
-          <span class="portion-pill">🧂 Cond ×2</span>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~60% protein</div>
-      </div>
-
-      <div class="phase-card p2">
-        <h3 style="color:#81c784">🚀 Phase II — Energy Booster</h3>
-        <p>Balanced macros. Add more carbs to fuel increasingly intense workouts. Your energy levels should noticeably improve in this phase.</p>
-        <div class="phase-portions">
-          <span class="portion-pill">🥩 Protein ×6</span>
-          <span class="portion-pill">🥛 Dairy ×2</span>
-          <span class="portion-pill">🍎 Fruit ×1</span>
-          <span class="portion-pill">🥦 Veg ×3</span>
-          <span class="portion-pill">🥑 Fat ×1</span>
-          <span class="portion-pill">🍚 Carb ×3</span>
-          <span class="portion-pill">🍫 Snacks ×3</span>
-          <span class="portion-pill">🧂 Cond ×2</span>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~40% protein, 40% carb</div>
-      </div>
-
-      <div class="phase-card p3">
-        <h3 style="color:#64b5f6">🏆 Phase III — Endurance Maximizer</h3>
-        <p>Carb-heavy, lower protein. Fuel peak performance. Your body is now lean enough to maximize carbohydrates for elite-level endurance.</p>
-        <div class="phase-portions">
-          <span class="portion-pill">🥩 Protein ×3</span>
-          <span class="portion-pill">🥛 Dairy ×1</span>
-          <span class="portion-pill">🍎 Fruit ×3</span>
-          <span class="portion-pill">🥦 Veg ×3</span>
-          <span class="portion-pill">🥑 Fat ×1</span>
-          <span class="portion-pill">🍚 Carb ×4</span>
-          <span class="portion-pill">🍫 Snacks ×3</span>
-          <span class="portion-pill">🧂 Cond ×3</span>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--muted)">2,400–2,999 cal/day · ~20% protein, 60% carb</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Daily Tips</div>
-      <div class="coach-tip">
-        <div class="tip-label">🔑 Key Rule</div>
-        <div class="tip-text" id="coach-tip-main"></div>
-      </div>
-      <div id="coach-tips-list"></div>
-    </div>
-
     <div class="card">
       <div class="card-title">Reminders</div>
       <div id="reminders-list"></div>
@@ -586,6 +571,13 @@
       <div style="border-top:1px solid var(--border);padding-top:12px;">
         <button class="btn-secondary" onclick="resetToday()" style="background:#1a0000;border-color:var(--red-dark);color:var(--red);">🔄 Reset Today's Tracker</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sync Audit Log</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Last 10 sync/load attempts — use this to troubleshoot Google Sheets.</div>
+      <div id="audit-log-list"><div style="color:var(--muted);font-size:12px;padding:8px 0;">No activity yet.</div></div>
+      <button class="btn-secondary" onclick="clearAuditLog()" style="margin-top:10px;font-size:12px;">🗑 Clear Log</button>
     </div>
   </div>
 
@@ -764,7 +756,7 @@
     <span class="icon">⚖️</span>BODY FAT
   </button>
   <button class="nav-btn" onclick="switchTab('coach', this)">
-    <span class="icon">💪</span>COACH
+    <span class="icon">⚙️</span>ADMIN
   </button>
 </nav>
 
@@ -1059,6 +1051,7 @@ function switchTab(tab, btn) {
   if (tab === 'bf')      renderBFTab();
   if (tab === 'caffeine') renderCaffeineTab();
   if (tab === 'history') renderHistoryTab();
+  if (tab === 'coach')   renderAuditLog();
 }
 
 // ========== TODAY TAB ==========
@@ -1607,17 +1600,21 @@ async function syncToSheet() {
       }
     };
     const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+    addAuditEntry('SYNC →', 'pending', 'Sending to: ' + state.scriptUrl.slice(0, 60) + '…');
     const resp = await fetch(url);
     const json = await resp.json();
     if (json.success) {
       state.lastSync = json.syncedAt || new Date().toISOString();
       saveState();
       updateSyncStatus();
+      addAuditEntry('SYNC →', 'ok', 'Sheet updated. syncedAt: ' + (json.syncedAt || 'unknown'));
       showToast('✅ Synced to Google Sheets!', 2500);
     } else {
+      addAuditEntry('SYNC →', 'err', 'Script returned error: ' + JSON.stringify(json));
       showToast('⚠️ Sync error: ' + (json.error || 'Unknown'), 3000);
     }
   } catch (err) {
+    addAuditEntry('SYNC →', 'err', err.message + ' | URL: ' + (state.scriptUrl || 'not set'));
     showToast('❌ Network error — check URL & connection', 3000);
   } finally {
     btn.textContent = '☁️ Sync to Sheet';
@@ -1649,6 +1646,7 @@ async function loadFromSheet() {
   btn.textContent = '⏳ Loading…';
   btn.disabled = true;
   try {
+    addAuditEntry('LOAD ←', 'pending', 'Requesting from: ' + state.scriptUrl.slice(0, 60) + '…');
     const json = await gasJsonp(state.scriptUrl);
 
     // Merge tracking (sheet wins for existing dates)
@@ -1674,8 +1672,10 @@ async function loadFromSheet() {
     saveState();
     updateSyncStatus();
     renderTodayTab();
+    addAuditEntry('LOAD ←', 'ok', `Got ${Object.keys(json.tracking||{}).length} tracking days, ${(json.bfLog||[]).length} BF entries`);
     showToast('✅ Data loaded from Google Sheets!', 2500);
   } catch (err) {
+    addAuditEntry('LOAD ←', 'err', err.message + ' | URL: ' + (state.scriptUrl || 'not set'));
     showToast('❌ Load failed — check URL & connection', 3000);
   } finally {
     btn.textContent = '📥 Load from Sheet';
@@ -2150,9 +2150,42 @@ function goToDate(d) {
   switchTab('today', todayBtn);
 }
 
-// Also sync caffeine when pushing to Sheets
-const _origBuildPayload = buildSyncPayload;
-// (caffeine data included via state already serialised in saveState)
+// ========== AUDIT LOG ==========
+function addAuditEntry(op, status, detail) {
+  const log = JSON.parse(localStorage.getItem('p90x_audit') || '[]');
+  const ts = new Date().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', second:'2-digit' });
+  const date = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  log.unshift({ op, status, detail, ts, date });
+  localStorage.setItem('p90x_audit', JSON.stringify(log.slice(0, 10)));
+  renderAuditLog();
+}
+
+function renderAuditLog() {
+  const el = document.getElementById('audit-log-list');
+  if (!el) return;
+  const log = JSON.parse(localStorage.getItem('p90x_audit') || '[]');
+  if (!log.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0;">No activity yet.</div>'; return; }
+  el.innerHTML = log.map(e => {
+    const ok = e.status === 'ok';
+    const color = ok ? 'var(--green)' : 'var(--red)';
+    const icon = ok ? '✅' : '❌';
+    return `<div style="padding:8px 0;border-bottom:1px solid #1e1e1e;display:flex;gap:10px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">${icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;gap:6px;">
+          <span style="font-size:12px;font-weight:700;color:${color};">${e.op}</span>
+          <span style="font-size:10px;color:var(--muted);white-space:nowrap;">${e.date} ${e.ts}</span>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px;word-break:break-all;">${e.detail}</div>
+      </div>
+    </div>`;
+  }).join('') + '<div style="border-bottom:none"></div>';
+}
+
+function clearAuditLog() {
+  localStorage.removeItem('p90x_audit');
+  renderAuditLog();
+}
 
 // Run
 init();
