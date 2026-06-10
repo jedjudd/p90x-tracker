@@ -1736,7 +1736,7 @@ const CAF_QUICK = [
 ];
 
 function getTodayCafLog() {
-  const d = getToday();
+  const d = viewDate;
   if (!state.caffeineLog[d]) state.caffeineLog[d] = [];
   return state.caffeineLog[d];
 }
@@ -1745,8 +1745,13 @@ function getTodayCafTotal() {
   return getTodayCafLog().reduce((sum, e) => sum + e.mg, 0);
 }
 
+function getRealTodayCafTotal() {
+  const d = getToday();
+  return (state.caffeineLog[d] || []).reduce((sum, e) => sum + e.mg, 0);
+}
+
 function updateHomeCafCard() {
-  const total = getTodayCafTotal();
+  const total = getRealTodayCafTotal();
   const goal  = state.caffeineGoal || 270;
   const pct   = Math.min(total / goal * 100, 110);
 
