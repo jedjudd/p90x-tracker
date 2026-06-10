@@ -48,6 +48,24 @@
   .phase-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
   .date-label { font-size: 11px; color: var(--muted); text-align: right; }
 
+  /* HEADER SYNC BUTTON */
+  #hdr-sync-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 16px; border: 1.5px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all 0.25s; white-space: nowrap; letter-spacing: 0.3px;
+  }
+  #hdr-sync-btn.dirty {
+    border-color: var(--green); color: var(--green);
+    box-shadow: 0 0 8px rgba(67,160,71,0.4);
+    animation: hdr-sync-pulse 2s ease-in-out infinite;
+  }
+  #hdr-sync-btn.syncing { border-color: var(--muted); color: var(--muted); animation: none; }
+  @keyframes hdr-sync-pulse {
+    0%,100% { box-shadow: 0 0 6px rgba(67,160,71,0.3); }
+    50%      { box-shadow: 0 0 14px rgba(67,160,71,0.7); }
+  }
+
   /* SCROLL CONTAINER */
   #app { position: fixed; top: 62px; bottom: 64px; left: 0; right: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .tab-panel { display: none; padding: 12px; min-height: 100%; }
@@ -293,11 +311,16 @@
       <button class="date-nav-today-btn hidden" id="date-today-btn" onclick="jumpToToday()">TODAY</button>
     </div>
   </div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-    <div class="phase-selector" id="phase-selector">
-      <button class="phase-btn active" onclick="setPhase(1)">Phase I</button>
-      <button class="phase-btn" onclick="setPhase(2)">Phase II</button>
-      <button class="phase-btn" onclick="setPhase(3)">Phase III</button>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button id="hdr-sync-btn" onclick="headerSync()" title="Sync to Google Sheets">
+        <span id="hdr-sync-icon">☁️</span><span id="hdr-sync-label">Synced</span>
+      </button>
+      <div class="phase-selector" id="phase-selector">
+        <button class="phase-btn active" onclick="setPhase(1)">Phase I</button>
+        <button class="phase-btn" onclick="setPhase(2)">Phase II</button>
+        <button class="phase-btn" onclick="setPhase(3)">Phase III</button>
+      </div>
     </div>
     <div style="font-size:10px;color:var(--muted);text-align:right;" id="phase-name-label">Fat Shredder · Level II</div>
   </div>
@@ -938,6 +961,71 @@ let histChartInstance = null;
 let viewDate = new Date().toISOString().split('T')[0];
 
 // ========== HELPERS ==========
+let syncDirty = false;
+
+function markDirty() {
+  syncDirty = true;
+  updateHdrSync();
+}
+
+function updateHdrSync() {
+  const btn   = document.getElementById('hdr-sync-btn');
+  const icon  = document.getElementById('hdr-sync-icon');
+  const label = document.getElementById('hdr-sync-label');
+  if (!btn) return;
+  if (!state.scriptUrl) {
+    btn.className = '';
+    icon.textContent = '☁️'; label.textContent = 'No URL';
+  } else if (syncDirty) {
+    btn.className = 'dirty';
+    icon.textContent = '🔄'; label.textContent = 'Sync now';
+  } else {
+    btn.className = '';
+    icon.textContent = '✅'; label.textContent = 'Synced';
+  }
+}
+
+async function headerSync() {
+  if (!state.scriptUrl) { showToast('⚠️ Set your Script URL in Admin first'); return; }
+  const btn   = document.getElementById('hdr-sync-btn');
+  const icon  = document.getElementById('hdr-sync-icon');
+  const label = document.getElementById('hdr-sync-label');
+  btn.className = 'syncing';
+  icon.textContent = '⏳'; label.textContent = 'Syncing…';
+  btn.disabled = true;
+  try {
+    const today = getToday();
+    const payload = {
+      action: 'sync',
+      tracking: state.tracking[today] ? { [today]: state.tracking[today] } : {},
+      bfLog: state.bfLog.slice(-5),
+      settings: { bfGoal: state.bfGoal, bodyWeight: state.bodyWeight, phase: state.phase }
+    };
+    const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+    addAuditEntry('SYNC →', 'pending', 'Sending to: ' + state.scriptUrl.slice(0, 60) + '…');
+    const json = await gasJsonp(url);
+    if (json.success) {
+      state.lastSync = json.syncedAt || new Date().toISOString();
+      syncDirty = false;
+      saveState();
+      updateSyncStatus();
+      updateHdrSync();
+      addAuditEntry('SYNC →', 'ok', 'syncedAt: ' + (json.syncedAt || 'unknown'));
+      showToast('✅ Synced!', 2000);
+    } else {
+      addAuditEntry('SYNC →', 'err', JSON.stringify(json));
+      showToast('⚠️ Sync error: ' + (json.error || 'Unknown'), 3000);
+      updateHdrSync();
+    }
+  } catch (err) {
+    addAuditEntry('SYNC →', 'err', err.message);
+    showToast('❌ Sync failed — check connection', 3000);
+    updateHdrSync();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function saveState() {
   localStorage.setItem('p90x_phase', state.phase);
   localStorage.setItem('p90x_tracking', JSON.stringify(state.tracking));
@@ -952,6 +1040,8 @@ function saveState() {
   localStorage.setItem('p90x_caf_goal', state.caffeineGoal);
   localStorage.setItem('p90x_caf_preworkout', state.caffeinePreworkout);
   localStorage.setItem('p90x_caf_taper', JSON.stringify(state.caffeineTaper));
+  syncDirty = true;
+  updateHdrSync();
 }
 
 function getToday() { return new Date().toISOString().split('T')[0]; }
@@ -1717,6 +1807,8 @@ function init() {
   updateCoachTips();
   renderReminders();
   updateSyncStatus();
+  syncDirty = false;
+  updateHdrSync();
   renderQuickButtons();
 
   if (state.bodyWeight) {
