@@ -294,6 +294,15 @@
   .hist-table tr:last-child td { border-bottom: none; }
   .hist-table tr { cursor: pointer; transition: background 0.15s; }
   .hist-table tr:hover td, .hist-table tr:active td { background: #1e1e1e; }
+  .hist-tab-btn { padding:5px 14px; border-radius:14px; border:1px solid var(--border); background:var(--card2); color:var(--muted); font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  .hist-tab-btn.active { background:var(--red); border-color:var(--red); color:#fff; }
+  .goal-progress-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .goal-progress-item { display:flex; flex-direction:column; gap:4px; }
+  .goal-progress-label { font-size:10px; color:var(--muted); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
+  .goal-progress-val { font-size:18px; font-weight:900; }
+  .goal-progress-sub { font-size:10px; color:var(--muted); }
+  .goal-progress-bar { height:4px; border-radius:2px; background:var(--border); overflow:hidden; margin-top:2px; }
+  .goal-progress-bar-fill { height:100%; border-radius:2px; transition:width 0.4s; }
   .hist-pct-bar { height: 4px; border-radius: 2px; background: #2a2a2a; overflow: hidden; margin-top: 3px; }
   .hist-pct-fill { height: 100%; border-radius: 2px; }
   .hist-empty { text-align: center; padding: 32px 0; color: var(--muted); font-size: 13px; }
@@ -619,8 +628,13 @@
 
   <!-- TAB: HISTORY -->
   <div class="tab-panel" id="tab-history">
+    <div class="card" id="hist-goals-card"></div>
     <div class="card">
-      <div class="card-title">Completion &amp; Calories — Last 30 Days</div>
+      <div class="card-title">Trends — Last 30 Days</div>
+      <div id="hist-chart-tabs" style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="hist-tab-btn active" onclick="setHistChart('food',this)">Food</button>
+        <button class="hist-tab-btn" onclick="setHistChart('caffeine',this)">Caffeine</button>
+      </div>
       <div class="hist-chart-wrap"><canvas id="hist-chart"></canvas></div>
     </div>
     <div class="card">
@@ -956,6 +970,7 @@ if (!state.reminders) {
 // Chart instances
 let bfChartInstance = null;
 let histChartInstance = null;
+let histChartMode = 'food';
 
 // View date (not persisted — always resets to today on load)
 let viewDate = new Date().toISOString().split('T')[0];
@@ -1083,12 +1098,16 @@ function shiftViewDate(delta) {
   viewDate = newDate;
   updateDateNav();
   renderTodayTab();
+  const activeTab = document.querySelector('.tab-panel.active');
+  if (activeTab && activeTab.id === 'tab-caffeine') renderCaffeineTab();
 }
 
 function jumpToToday() {
   viewDate = getToday();
   updateDateNav();
   renderTodayTab();
+  const activeTab = document.querySelector('.tab-panel.active');
+  if (activeTab && activeTab.id === 'tab-caffeine') renderCaffeineTab();
 }
 
 function calcCalories(tracking) {
@@ -1224,8 +1243,8 @@ function adjustCount(key, delta) {
   const comp = calcCompletion(tracking);
   if (comp.pct === 100) {
     setTimeout(() => showToast('🎉 All portions complete! Amazing work!', 3000), 500);
-    markStreakDay(getToday());
   }
+  markStreakDay(viewDate);
 
   saveState();
   renderFoodGroups();
@@ -1271,8 +1290,8 @@ function renderStreak() {
     const tracking = state.tracking[ds];
     let done = false;
     if (tracking) {
-      const comp = calcCompletionForDate(tracking);
-      done = comp.pct >= 80;
+      // Any portion logged counts toward streak
+      done = Object.keys(tracking).some(k => k !== 'water' && (tracking[k] || 0) > 0);
     }
 
     const dot = document.createElement('div');
@@ -2146,120 +2165,178 @@ function saveCaffeineSettings() {
 }
 
 // ========== HISTORY TAB ==========
+function setHistChart(mode, btn) {
+  histChartMode = mode;
+  document.querySelectorAll('.hist-tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistChart();
+}
+
 function renderHistoryTab() {
+  renderGoalProgress();
+  renderHistChart();
+  renderHistTable();
+}
+
+function renderGoalProgress() {
+  const card = document.getElementById('hist-goals-card');
+  if (!card) return;
   const today = getToday();
-  // Build last 30 days array, newest first
+
+  // Latest BF reading
+  const latestBf = state.bfLog.length ? state.bfLog[state.bfLog.length - 1] : null;
+  const currentBf = latestBf ? parseFloat(latestBf.bf) : null;
+  const bfGoal = parseFloat(state.bfGoal) || null;
+
+  // 7-day caffeine avg vs goal
+  const cafGoal = state.caffeineGoal || 270;
+  let cafSum = 0, cafDays = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const log = state.caffeineLog[ds];
+    if (log && log.length) { cafSum += log.reduce((s,e) => s+e.mg, 0); cafDays++; }
+  }
+  const cafAvg = cafDays ? Math.round(cafSum / cafDays) : null;
+
+  // Taper progress
+  const taper = state.caffeineTaper;
+  let taperPct = null, taperLabel = '';
+  if (taper && taper.current && taper.target !== undefined) {
+    const range = taper.current - taper.target;
+    const reduced = taper.current - cafGoal;
+    taperPct = range > 0 ? Math.min(Math.round(reduced / range * 100), 100) : 100;
+    taperLabel = `${cafGoal}mg → ${taper.target}mg goal`;
+  }
+
+  // 7-day food completion avg
+  let foodSum = 0, foodDays = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    if (state.tracking[ds]) { foodSum += calcCompletionForDate(state.tracking[ds]).pct; foodDays++; }
+  }
+  const foodAvg = foodDays ? Math.round(foodSum / foodDays) : null;
+
+  const bfColor   = (currentBf && bfGoal) ? (currentBf <= bfGoal ? 'var(--green)' : currentBf <= bfGoal + 3 ? 'var(--orange)' : 'var(--red)') : 'var(--text)';
+  const cafColor  = cafAvg !== null ? (cafAvg <= cafGoal ? 'var(--green)' : cafAvg <= cafGoal * 1.2 ? 'var(--orange)' : 'var(--red)') : 'var(--muted)';
+  const foodColor = foodAvg !== null ? (foodAvg >= 90 ? 'var(--green)' : foodAvg >= 60 ? 'var(--orange)' : 'var(--red)') : 'var(--muted)';
+
+  const bfBarPct = (currentBf && bfGoal && currentBf > bfGoal)
+    ? Math.round((1 - (currentBf - bfGoal) / currentBf) * 100)
+    : 100;
+
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:12px;">Goal Progress</div>
+    <div class="goal-progress-grid">
+      <div class="goal-progress-item">
+        <div class="goal-progress-label">Body Fat %</div>
+        <div class="goal-progress-val" style="color:${bfColor}">${currentBf !== null ? currentBf + '%' : '—'}</div>
+        <div class="goal-progress-sub">${bfGoal ? 'Goal: ' + bfGoal + '%' : 'Set in Body Fat tab'}</div>
+        ${currentBf ? `<div class="goal-progress-bar"><div class="goal-progress-bar-fill" style="width:${bfBarPct}%;background:${bfColor}"></div></div>` : ''}
+      </div>
+      <div class="goal-progress-item">
+        <div class="goal-progress-label">Food (7d avg)</div>
+        <div class="goal-progress-val" style="color:${foodColor}">${foodAvg !== null ? foodAvg + '%' : '—'}</div>
+        <div class="goal-progress-sub">Daily completion</div>
+        ${foodAvg !== null ? `<div class="goal-progress-bar"><div class="goal-progress-bar-fill" style="width:${foodAvg}%;background:${foodColor}"></div></div>` : ''}
+      </div>
+      <div class="goal-progress-item">
+        <div class="goal-progress-label">Caffeine (7d avg)</div>
+        <div class="goal-progress-val" style="color:${cafColor}">${cafAvg !== null ? cafAvg + 'mg' : '—'}</div>
+        <div class="goal-progress-sub">${taperLabel || 'Goal: ' + cafGoal + 'mg'}</div>
+        ${taperPct !== null
+          ? `<div class="goal-progress-bar"><div class="goal-progress-bar-fill" style="width:${taperPct}%;background:var(--green)"></div></div>`
+          : cafAvg !== null ? `<div class="goal-progress-bar"><div class="goal-progress-bar-fill" style="width:${Math.min(100,Math.round(cafAvg/cafGoal*100))}%;background:${cafColor}"></div></div>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderHistChart() {
+  const today = getToday();
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  const labels = days.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }));
+
+  let datasets;
+  if (histChartMode === 'caffeine') {
+    const cafData  = days.map(d => { const l = state.caffeineLog[d]; return l && l.length ? l.reduce((s,e)=>s+e.mg,0) : null; });
+    const goalLine = days.map(() => state.caffeineGoal || 270);
+    datasets = [
+      { type:'line', label:'Goal', data:goalLine, borderColor:'rgba(229,57,53,0.5)', borderWidth:1.5, borderDash:[4,4], pointRadius:0, fill:false, yAxisID:'yA', spanGaps:true },
+      { label:'Caffeine (mg)', data:cafData, backgroundColor:'rgba(30,136,229,0.5)', borderColor:'#1e88e5', borderWidth:1, borderRadius:3, yAxisID:'yA' }
+    ];
+  } else {
+    const pctData = days.map(d => state.tracking[d] ? calcCompletionForDate(state.tracking[d]).pct : null);
+    const calData = days.map(d => state.tracking[d] ? calcCalories(state.tracking[d]) : null);
+    datasets = [
+      { type:'line', label:'Completion %', data:pctData, borderColor:'#e53935', backgroundColor:'rgba(229,57,53,0.15)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#e53935', tension:0.3, yAxisID:'yPct', spanGaps:true },
+      { label:'Calories', data:calData, backgroundColor:'rgba(255,111,0,0.5)', borderColor:'#ff6f00', borderWidth:1, borderRadius:3, yAxisID:'yCal' }
+    ];
+  }
+
+  const ctx = document.getElementById('hist-chart').getContext('2d');
+  if (histChartInstance) histChartInstance.destroy();
+  histChartInstance = new Chart(ctx, {
+    type: 'bar', data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ labels:{ color:'#888', font:{ size:10 } } } },
+      scales: histChartMode === 'caffeine' ? {
+        x: { ticks:{ color:'#555', font:{ size:9 }, maxRotation:45 }, grid:{ color:'#1e1e1e' } },
+        yA: { position:'left', ticks:{ color:'#1e88e5', font:{ size:9 }, callback: v => v+'mg' }, grid:{ color:'#1e1e1e' } }
+      } : {
+        x: { ticks:{ color:'#555', font:{ size:9 }, maxRotation:45 }, grid:{ color:'#1e1e1e' } },
+        yPct: { position:'left', min:0, max:100, ticks:{ color:'#e53935', font:{ size:9 }, callback: v => v+'%' }, grid:{ color:'#1e1e1e' } },
+        yCal: { position:'right', ticks:{ color:'#ff6f00', font:{ size:9 } }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+function renderHistTable() {
+  const today = getToday();
   const days = [];
   for (let i = 0; i < 30; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
     days.push(d.toISOString().split('T')[0]);
   }
-
-  const tracked = days.filter(d => state.tracking[d]);
-
-  // ── Chart ──
-  const chartDays = days.slice().reverse(); // oldest → newest for chart
-  const labels = chartDays.map(d => {
-    const dt = new Date(d + 'T12:00:00');
-    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-  });
-  const pctData  = chartDays.map(d => {
-    if (!state.tracking[d]) return null;
-    return calcCompletionForDate(state.tracking[d]).pct;
-  });
-  const calData  = chartDays.map(d => {
-    if (!state.tracking[d]) return null;
-    return calcCalories(state.tracking[d]);
-  });
-
-  const ctx = document.getElementById('hist-chart').getContext('2d');
-  if (histChartInstance) histChartInstance.destroy();
-  histChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          type: 'line',
-          label: 'Completion %',
-          data: pctData,
-          borderColor: '#e53935',
-          backgroundColor: 'rgba(229,57,53,0.15)',
-          borderWidth: 2,
-          pointRadius: 3,
-          pointBackgroundColor: '#e53935',
-          tension: 0.3,
-          yAxisID: 'yPct',
-          spanGaps: true
-        },
-        {
-          label: 'Calories',
-          data: calData,
-          backgroundColor: 'rgba(255,111,0,0.5)',
-          borderColor: '#ff6f00',
-          borderWidth: 1,
-          borderRadius: 3,
-          yAxisID: 'yCal'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: '#888', font: { size: 10 } } } },
-      scales: {
-        x: { ticks: { color: '#555', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#1e1e1e' } },
-        yPct: {
-          position: 'left',
-          min: 0, max: 100,
-          ticks: { color: '#e53935', font: { size: 9 }, callback: v => v + '%' },
-          grid: { color: '#1e1e1e' }
-        },
-        yCal: {
-          position: 'right',
-          ticks: { color: '#ff6f00', font: { size: 9 } },
-          grid: { display: false }
-        }
-      }
-    }
-  });
-
-  // ── Table ──
+  const tracked = days.filter(d => state.tracking[d] || (state.caffeineLog[d] && state.caffeineLog[d].length));
   const wrap = document.getElementById('hist-table-wrap');
   if (!tracked.length) {
     wrap.innerHTML = '<div class="hist-empty">No entries yet — start logging on the Today tab!</div>';
     return;
   }
-
   const targetCal = calcTargetCal();
-  let html = `<table class="hist-table">
-    <thead><tr><th>Date</th><th>Completion</th><th>Calories</th><th>Water</th></tr></thead>
-    <tbody>`;
-
+  const cafGoal   = state.caffeineGoal || 270;
+  let html = `<table class="hist-table"><thead><tr><th>Date</th><th>Food</th><th>Calories</th><th>Caffeine</th></tr></thead><tbody>`;
   tracked.forEach(d => {
-    const t = state.tracking[d];
-    const comp = calcCompletionForDate(t);
-    const cal  = calcCalories(t);
-    const water = t.water || 0;
+    const t      = state.tracking[d];
+    const comp   = t ? calcCompletionForDate(t) : { pct:0 };
+    const cal    = t ? calcCalories(t) : 0;
+    const cafLog = state.caffeineLog[d] || [];
+    const cafMg  = cafLog.reduce((s,e)=>s+e.mg, 0);
     const isToday = d === today;
     const dt = new Date(d + 'T12:00:00');
     const dateLabel = isToday ? 'Today' : dt.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-    const pctColor = comp.pct >= 100 ? 'var(--green)' : comp.pct >= 80 ? 'var(--orange)' : 'var(--red)';
-    const calColor = cal >= targetCal ? 'var(--green)' : cal >= targetCal * 0.8 ? 'var(--orange)' : 'var(--muted)';
-
+    const pctColor = comp.pct >= 100 ? 'var(--green)' : comp.pct >= 60 ? 'var(--orange)' : (t ? 'var(--red)' : 'var(--muted)');
+    const calColor = t ? (cal >= targetCal ? 'var(--green)' : cal >= targetCal * 0.8 ? 'var(--orange)' : 'var(--muted)') : 'var(--muted)';
+    const cafColor = cafMg > 0 ? (cafMg <= cafGoal ? 'var(--green)' : cafMg <= cafGoal * 1.2 ? 'var(--orange)' : 'var(--red)') : 'var(--muted)';
     html += `<tr onclick="goToDate('${d}')">
-      <td style="font-weight:700;${isToday ? 'color:var(--red)' : ''}">${dateLabel}</td>
-      <td>
-        <div style="font-weight:800;color:${pctColor}">${comp.pct}%</div>
-        <div class="hist-pct-bar"><div class="hist-pct-fill" style="width:${comp.pct}%;background:${pctColor}"></div></div>
-      </td>
-      <td style="font-weight:700;color:${calColor}">${cal.toLocaleString()}</td>
-      <td style="color:var(--muted)">${water}/8 💧</td>
+      <td style="font-weight:700;${isToday?'color:var(--red)':''}">${dateLabel}</td>
+      <td style="font-weight:800;color:${pctColor}">${t ? comp.pct+'%' : '—'}</td>
+      <td style="font-weight:700;color:${calColor}">${t ? cal.toLocaleString() : '—'}</td>
+      <td style="font-weight:700;color:${cafColor}">${cafMg > 0 ? cafMg+'mg' : '—'}</td>
     </tr>`;
   });
-
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
