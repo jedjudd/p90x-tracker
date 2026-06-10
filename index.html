@@ -554,7 +554,18 @@
 
       <!-- Google Sheets Sync -->
       <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px;">
-        <label style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0.5px;display:block;margin-bottom:4px;">📊 GOOGLE SHEETS SYNC</label>
+        <label style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0.5px;display:block;margin-bottom:8px;">📊 GOOGLE SHEETS SYNC</label>
+        <div style="background:linear-gradient(135deg,#001020,#001830);border:1px solid #1565c0;border-radius:10px;padding:12px;margin-bottom:12px;font-size:12px;color:#ccc;line-height:1.8;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#64b5f6;margin-bottom:6px;">📋 SETUP — DO THIS ONCE</div>
+          <div><b style="color:#fff">1.</b> Open your Google Sheet → <b style="color:#fff">Extensions → Apps Script</b></div>
+          <div><b style="color:#fff">2.</b> Paste the entire <b style="color:#fff">P90X_Apps_Script.gs</b> file, replacing all existing code</div>
+          <div><b style="color:#fff">3.</b> Click <b style="color:#fff">Deploy → New deployment</b></div>
+          <div><b style="color:#fff">4.</b> Type: <b style="color:#fff">Web app</b> · Execute as: <b style="color:#fff">Me</b> · Access: <b style="color:#fff">Anyone</b></div>
+          <div><b style="color:#fff">5.</b> Click Deploy → copy the <b style="color:#fff">Web App URL</b> → paste below</div>
+          <div style="margin-top:6px;padding:6px 8px;background:rgba(229,57,53,0.1);border:1px solid var(--red-dark);border-radius:6px;color:#ff8a80;font-size:11px;">
+            ⚠️ After any code change you must create a <b>New Version</b> under Manage deployments — editing the existing deployment without a new version keeps the old code live.
+          </div>
+        </div>
         <input type="url" id="script-url-input" placeholder="Paste Apps Script Web App URL here…"
           style="width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;margin-bottom:8px;">
         <button class="btn-primary" onclick="saveScriptUrl()" style="margin-bottom:8px;">💾 Save URL</button>
@@ -1625,14 +1636,22 @@ function gasJsonp(url) {
   return new Promise((resolve, reject) => {
     const cb = 'p90x_cb_' + Date.now();
     const script = document.createElement('script');
-    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 15000);
+    const timer = setTimeout(() => {
+      cleanup();
+      // Script loaded but callback never fired → old GAS deployment (no callback support)
+      reject(new Error('TIMEOUT — GAS script loaded but returned no data. Redeploy the Apps Script (Deploy → Manage → New Version)'));
+    }, 10000);
     function cleanup() {
       clearTimeout(timer);
       delete window[cb];
       script.remove();
     }
     window[cb] = data => { cleanup(); resolve(data); };
-    script.onerror = () => { cleanup(); reject(new Error('load failed')); };
+    script.onerror = () => {
+      cleanup();
+      // Script tag itself failed — URL wrong, GAS not deployed as "Anyone", or old code returned invalid JS
+      reject(new Error('SCRIPT ERROR — GAS returned invalid response. Most likely cause: Apps Script not redeployed after code change. Go to Extensions → Apps Script → Deploy → Manage → Edit → New Version → Deploy'));
+    };
     script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
     document.head.appendChild(script);
   });
