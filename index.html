@@ -1268,7 +1268,7 @@ function updateSummary() {
   document.getElementById('sum-pct').textContent = comp.pct + '%';
   document.getElementById('sum-groups').textContent = `${comp.done} of ${comp.total} groups done`;
   document.getElementById('sum-water').textContent = `${water} / 8`;
-  document.getElementById('sum-streak').textContent = (state.streak.count || 0) + ' 🔥';
+  document.getElementById('sum-streak').textContent = calcStreakCount() + ' 🔥';
   document.getElementById('cal-target-label').textContent = target.toLocaleString() + ' cal';
 
   const fillPct = target > 0 ? Math.min(cal / target * 100, 110) : 0;
@@ -1312,22 +1312,22 @@ function calcCompletionForDate(tracking) {
   return { done, total, pct: total ? Math.round(done/total*100) : 0 };
 }
 
-function markStreakDay(date) {
-  if (!state.streak.lastDate) {
-    state.streak = { count: 1, lastDate: date };
-  } else {
-    const last = new Date(state.streak.lastDate);
-    const curr = new Date(date);
-    const diff = (curr - last) / (1000 * 60 * 60 * 24);
-    if (diff === 1) {
-      state.streak = { count: (state.streak.count || 0) + 1, lastDate: date };
-    } else if (diff === 0) {
-      // same day, no change
-    } else {
-      state.streak = { count: 1, lastDate: date };
-    }
+function calcStreakCount() {
+  const today = getToday();
+  let count = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today + 'T12:00:00');
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const tracking = state.tracking[ds];
+    const hasTracking = tracking && Object.keys(tracking).some(k => k !== 'water' && (tracking[k] || 0) > 0);
+    if (hasTracking) { count++; } else { break; }
   }
-  saveState();
+  return count;
+}
+
+function markStreakDay(date) {
+  // no-op: streak is now computed live from tracking data
 }
 
 function resetToday() {
