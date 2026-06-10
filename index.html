@@ -951,8 +951,8 @@ let state = {
   today: new Date().toISOString().split('T')[0],
   tracking: JSON.parse(localStorage.getItem('p90x_tracking') || '{}'),
   bfLog: JSON.parse(localStorage.getItem('p90x_bf') || '[]'),
-  bfGoal: parseFloat(localStorage.getItem('p90x_bf_goal') || '0'),
-  bodyWeight: parseFloat(localStorage.getItem('p90x_weight') || '0'),
+  bfGoal: parseFloat(localStorage.getItem('p90x_bf_goal') || '') || null,
+  bodyWeight: parseFloat(localStorage.getItem('p90x_weight') || '') || null,
   reminders: JSON.parse(localStorage.getItem('p90x_reminders') || 'null'),
   streak: JSON.parse(localStorage.getItem('p90x_streak') || '{}'),
   scriptUrl: localStorage.getItem('p90x_script_url') || '',
@@ -1009,13 +1009,7 @@ async function headerSync() {
   icon.textContent = '⏳'; label.textContent = 'Syncing…';
   btn.disabled = true;
   try {
-    const today = getToday();
-    const payload = {
-      action: 'sync',
-      tracking: state.tracking[today] ? { [today]: state.tracking[today] } : {},
-      bfLog: state.bfLog.slice(-5),
-      settings: { bfGoal: state.bfGoal, bodyWeight: state.bodyWeight, phase: state.phase }
-    };
+    const payload = buildSyncPayload();
     const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
     addAuditEntry('SYNC →', 'pending', 'Sending to: ' + state.scriptUrl.slice(0, 60) + '…');
     const json = await gasJsonp(url);
@@ -1701,26 +1695,35 @@ function buildSyncPayload() {
   };
 }
 
+function buildSyncPayload() {
+  // Build caffeine log: array of {date, totalMg, entries}
+  const cafLog = Object.entries(state.caffeineLog).map(([date, entries]) => ({
+    date,
+    totalMg: entries.reduce((s, e) => s + e.mg, 0),
+    entries
+  })).filter(r => r.totalMg > 0);
+
+  return {
+    action: 'sync',
+    tracking: state.tracking,          // all dates, not just today
+    bfLog: state.bfLog.slice(-30),
+    cafLog,
+    settings: {
+      bfGoal:     state.bfGoal     || '',
+      bodyWeight: state.bodyWeight || '',
+      phase:      state.phase,
+      caffeineGoal: state.caffeineGoal || 270
+    }
+  };
+}
+
 async function syncToSheet() {
   if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
   const btn = document.getElementById('sync-btn');
   btn.textContent = '⏳ Syncing…';
   btn.disabled = true;
   try {
-    // GAS POST redirect converts to GET and drops the body (HTTP 302 behavior).
-    // Fix: send as GET with ?payload=... — doGet handles it server-side.
-    // Only send today + settings to stay well under URL length limits.
-    const today = getToday();
-    const payload = {
-      action: 'sync',
-      tracking: state.tracking[today] ? { [today]: state.tracking[today] } : {},
-      bfLog: state.bfLog.slice(-5),   // last 5 entries is plenty
-      settings: {
-        bfGoal:     state.bfGoal,
-        bodyWeight: state.bodyWeight,
-        phase:      state.phase
-      }
-    };
+    const payload = buildSyncPayload();
     const url = state.scriptUrl + '?payload=' + encodeURIComponent(JSON.stringify(payload));
     addAuditEntry('SYNC →', 'pending', 'Sending to: ' + state.scriptUrl.slice(0, 60) + '…');
     const json = await gasJsonp(url);
