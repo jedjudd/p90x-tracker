@@ -1,13 +1,11 @@
-const CACHE = 'p90x-v3';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
+const CACHE = 'p90x-v4';
+// Only cache CDN assets — never the app HTML itself so updates land immediately
+const PRECACHE = [
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js'
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -19,10 +17,15 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Pass through anything that isn't a same-origin or CDN asset
-  // Specifically: Google APIs, Apps Script, and googleusercontent redirects must never be intercepted
   const url = e.request.url;
+
+  // Never intercept Google requests
   if (url.includes('google.com') || url.includes('googleusercontent.com')) return;
+
+  // Always fetch HTML fresh so app updates land immediately
+  if (e.request.destination === 'document' || url.endsWith('.html')) return;
+
+  // Cache-first for CDN assets (Chart.js etc.)
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       const clone = res.clone();
