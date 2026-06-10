@@ -563,7 +563,8 @@
           <div><b style="color:#fff">4.</b> Type: <b style="color:#fff">Web app</b> · Execute as: <b style="color:#fff">Me</b> · Access: <b style="color:#fff">Anyone</b></div>
           <div><b style="color:#fff">5.</b> Click Deploy → copy the <b style="color:#fff">Web App URL</b> → paste below</div>
           <div style="margin-top:6px;padding:6px 8px;background:rgba(229,57,53,0.1);border:1px solid var(--red-dark);border-radius:6px;color:#ff8a80;font-size:11px;">
-            ⚠️ After any code change you must create a <b>New Version</b> under Manage deployments — editing the existing deployment without a new version keeps the old code live.
+            ⚠️ <b>Who has access</b> must be set to <b>Anyone</b> — NOT "Anyone with Google account". If it says the latter, edit the deployment and change it, then create a New Version.<br><br>
+            ⚠️ After any code change you must create a <b>New Version</b> under Manage deployments — saving the script without a new version keeps the old code live.
           </div>
         </div>
         <input type="url" id="script-url-input" placeholder="Paste Apps Script Web App URL here…"
@@ -573,6 +574,7 @@
           <button class="btn-secondary" onclick="syncToSheet()" style="flex:1;margin-top:0;" id="sync-btn">☁️ Sync to Sheet</button>
           <button class="btn-secondary" onclick="loadFromSheet()" style="flex:1;margin-top:0;" id="load-btn">📥 Load from Sheet</button>
         </div>
+        <button class="btn-secondary" onclick="testGasUrl()" style="margin-top:8px;font-size:12px;color:var(--blue);border-color:var(--blue);">🔍 Test URL in browser tab</button>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;" id="sync-status">
           <span id="sync-status-text">No script URL saved yet. See setup instructions in <b>P90X_Apps_Script.gs</b>.</span>
         </div>
@@ -1630,6 +1632,11 @@ async function syncToSheet() {
     btn.textContent = '☁️ Sync to Sheet';
     btn.disabled = false;
   }
+}
+
+function testGasUrl() {
+  if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
+  window.open(state.scriptUrl + '?callback=test', '_blank');
 }
 
 function gasJsonp(url) {
