@@ -599,8 +599,12 @@
             ⚠️ After any code change you must create a <b>New Version</b> under Manage deployments — saving the script without a new version keeps the old code live.
           </div>
         </div>
-        <input type="url" id="script-url-input" placeholder="Paste Apps Script Web App URL here…"
-          style="width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;margin-bottom:8px;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+          <input type="url" id="script-url-input" placeholder="Paste Apps Script Web App URL here…"
+            style="flex:1;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;"
+            oninput="autoSaveScriptUrl(this.value)">
+          <span id="url-saved-badge" style="display:none;font-size:11px;color:var(--green);white-space:nowrap;font-weight:700;">✅ Saved</span>
+        </div>
         <button class="btn-primary" onclick="saveScriptUrl()" style="margin-bottom:8px;">💾 Save URL</button>
         <div style="display:flex;gap:8px;">
           <button class="btn-secondary" onclick="syncToSheet()" style="flex:1;margin-top:0;" id="sync-btn">☁️ Sync to Sheet</button>
@@ -1637,12 +1641,28 @@ function closeModal(e) {
 
 // ========== INIT ==========
 // ========== GOOGLE SHEETS SYNC ==========
+let _urlSaveTimer = null;
+function autoSaveScriptUrl(val) {
+  clearTimeout(_urlSaveTimer);
+  _urlSaveTimer = setTimeout(() => {
+    if (val.trim().startsWith('https://')) {
+      state.scriptUrl = val.trim();
+      localStorage.setItem('p90x_script_url', state.scriptUrl);
+      const badge = document.getElementById('url-saved-badge');
+      if (badge) { badge.style.display = 'inline'; setTimeout(() => badge.style.display = 'none', 2000); }
+      updateHdrSync();
+    }
+  }, 600);
+}
+
 function saveScriptUrl() {
   const url = document.getElementById('script-url-input').value.trim();
   if (!url.startsWith('https://')) { showToast('⚠️ Enter a valid https:// URL'); return; }
   state.scriptUrl = url;
+  localStorage.setItem('p90x_script_url', state.scriptUrl);
   saveState();
   updateSyncStatus();
+  updateHdrSync();
   showToast('✅ Script URL saved!');
 }
 
