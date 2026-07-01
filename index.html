@@ -39,13 +39,13 @@
   }
   #header h1 { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px rgba(229,57,53,0.5); }
   #header h1 span { color: var(--red); }
-  #phase-selector { display: flex; gap: 4px; }
-  .phase-btn {
-    padding: 4px 9px; font-size: 10px; font-weight: 700; border-radius: 12px;
-    border: 1px solid var(--border); background: #2a2a2a; color: var(--muted);
-    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  #phase-selector {
+    padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 12px;
+    border: 1px solid var(--red); background: var(--red); color: #fff;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+    -webkit-appearance: none; appearance: none; max-width: 96px;
   }
-  .phase-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
+  #phase-selector option { background: #1a1a1a; color: #fff; }
   .date-label { font-size: 11px; color: var(--muted); text-align: right; }
 
   /* HEADER SYNC BUTTON */
@@ -320,16 +320,16 @@
       <button class="date-nav-today-btn hidden" id="date-today-btn" onclick="jumpToToday()">TODAY</button>
     </div>
   </div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-    <div style="display:flex;align-items:center;gap:6px;">
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:0;">
+    <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;">
       <button id="hdr-sync-btn" onclick="headerSync()" title="Sync to Google Sheets">
         <span id="hdr-sync-icon">☁️</span><span id="hdr-sync-label">Synced</span>
       </button>
-      <div class="phase-selector" id="phase-selector">
-        <button class="phase-btn active" onclick="setPhase(1)">Phase I</button>
-        <button class="phase-btn" onclick="setPhase(2)">Phase II</button>
-        <button class="phase-btn" onclick="setPhase(3)">Phase III</button>
-      </div>
+      <select id="phase-selector" onchange="setPhase(parseInt(this.value))">
+        <option value="1">Phase I</option>
+        <option value="2">Phase II</option>
+        <option value="3">Phase III</option>
+      </select>
     </div>
     <div style="font-size:10px;color:var(--muted);text-align:right;" id="phase-name-label">Fat Shredder · Level II</div>
   </div>
@@ -491,7 +491,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">7-Day Meal Plan</div>
+      <div class="card-title" id="meal-plan-title">7-Day Meal Plan</div>
       <div id="meal-plan-list"></div>
     </div>
   </div>
@@ -858,64 +858,185 @@ const FOOD_GROUPS = [
     foods:['8 oz glass of water (drink throughout the day)','Herbal tea counts','Coffee with no added sugar counts partially','Add lemon or lime for flavor'] }
 ];
 
-const MEAL_PLANS = [
-  { day:'Day 1', meals:[
-    ['Breakfast','Overnight oats (½ cup oats, 1 scoop whey, ½ cup berries, ½ cup low-fat milk)'],
-    ['Snack 1','Recovery drink + string cheese'],
-    ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), carrots (½ cup), brown rice (½ cup), salsa'],
-    ['Snack 2','Protein bar + Greek yogurt (½ cup)'],
-    ['Dinner','Chicken breast (6 oz), asparagus (1 cup), zucchini (½ cup), pineapple (½ cup)'],
-    ['Snack 3','Protein shake']
-  ]},
-  { day:'Day 2', meals:[
-    ['Breakfast','Scrambled eggs (3 whites + 1 whole), cottage cheese (½ cup), spinach (1 cup), olive oil (1 tsp)'],
-    ['Snack 1','Whey shake + ½ cup berries'],
-    ['Lunch','Chicken breast (6 oz), green beans (1 cup), quinoa (½ cup), mustard'],
-    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
-    ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), apple (½)'],
-    ['Snack 3','Protein bar']
-  ]},
-  { day:'Day 3', meals:[
-    ['Breakfast','Overnight oats (same as Day 1)'],
-    ['Snack 1','Recovery drink + string cheese'],
-    ['Lunch','Grilled chicken salad (6 oz chicken, mixed greens, cucumber, tomato, balsamic vinegar)'],
-    ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
-    ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), sweet potato (½ cup)'],
-    ['Snack 3','Protein shake']
-  ]},
-  { day:'Day 4', meals:[
-    ['Breakfast','Greek yogurt parfait (1 cup yogurt, ½ cup berries, 1 tbsp chia seeds)'],
-    ['Snack 1','Whey shake + celery sticks'],
-    ['Lunch','Chicken breast (6 oz), asparagus (1 cup), brown rice (½ cup), salsa'],
-    ['Snack 2','Protein bar + cottage cheese (½ cup)'],
-    ['Dinner','Chicken stir-fry (6 oz chicken, bell peppers, broccoli, soy sauce)'],
-    ['Snack 3','Recovery drink']
-  ]},
-  { day:'Day 5', meals:[
-    ['Breakfast','Overnight oats (same as Day 1)'],
-    ['Snack 1','Protein shake + string cheese'],
-    ['Lunch','Chicken burger (6 oz), lettuce wrap, roasted zucchini (1 cup), mustard'],
-    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
-    ['Dinner','Chicken breast (6 oz), spinach (1 cup), sweet potato (½ cup)'],
-    ['Snack 3','Protein bar']
-  ]},
-  { day:'Day 6', meals:[
-    ['Breakfast','Scrambled eggs (same as Day 2)'],
-    ['Snack 1','Recovery drink + celery sticks'],
-    ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), quinoa (½ cup), salsa'],
-    ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
-    ['Dinner','Chicken breast (6 oz), asparagus (1 cup), pineapple (½ cup)'],
-    ['Snack 3','Protein shake']
-  ]},
-  { day:'Day 7 (Rest/Active Recovery)', meals:[
-    ['Breakfast','Overnight oats (same as Day 1)'],
-    ['Snack 1','Whey shake + string cheese'],
-    ['Lunch','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), brown rice (½ cup), mustard'],
-    ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
-    ['Dinner','Chicken breast (6 oz), spinach (1 cup), apple (½)'],
-    ['Snack 3','Protein bar']
-  ]}
-];
+const MEAL_PLANS = {
+  // Phase I — Fat Shredder: high protein, low carb (protein×7, carb×1)
+  1: [
+    { day:'Day 1', meals:[
+      ['Breakfast','Overnight oats (½ cup oats, 1 scoop whey, ½ cup berries, ½ cup low-fat milk)'],
+      ['Snack 1','Recovery drink + string cheese'],
+      ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), carrots (½ cup), brown rice (½ cup), salsa'],
+      ['Snack 2','Protein bar + Greek yogurt (½ cup)'],
+      ['Dinner','Chicken breast (6 oz), asparagus (1 cup), zucchini (½ cup), pineapple (½ cup)'],
+      ['Snack 3','Protein shake']
+    ]},
+    { day:'Day 2', meals:[
+      ['Breakfast','Scrambled eggs (3 whites + 1 whole), cottage cheese (½ cup), spinach (1 cup), olive oil (1 tsp)'],
+      ['Snack 1','Whey shake + ½ cup berries'],
+      ['Lunch','Chicken breast (6 oz), green beans (1 cup), quinoa (½ cup), mustard'],
+      ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), apple (½)'],
+      ['Snack 3','Protein bar']
+    ]},
+    { day:'Day 3', meals:[
+      ['Breakfast','Overnight oats (same as Day 1)'],
+      ['Snack 1','Recovery drink + string cheese'],
+      ['Lunch','Grilled chicken salad (6 oz chicken, mixed greens, cucumber, tomato, balsamic vinegar)'],
+      ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), sweet potato (½ cup)'],
+      ['Snack 3','Protein shake']
+    ]},
+    { day:'Day 4', meals:[
+      ['Breakfast','Greek yogurt parfait (1 cup yogurt, ½ cup berries, 1 tbsp chia seeds)'],
+      ['Snack 1','Whey shake + celery sticks'],
+      ['Lunch','Chicken breast (6 oz), asparagus (1 cup), brown rice (½ cup), salsa'],
+      ['Snack 2','Protein bar + cottage cheese (½ cup)'],
+      ['Dinner','Chicken stir-fry (6 oz chicken, bell peppers, broccoli, soy sauce)'],
+      ['Snack 3','Recovery drink']
+    ]},
+    { day:'Day 5', meals:[
+      ['Breakfast','Overnight oats (same as Day 1)'],
+      ['Snack 1','Protein shake + string cheese'],
+      ['Lunch','Chicken burger (6 oz), lettuce wrap, roasted zucchini (1 cup), mustard'],
+      ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), spinach (1 cup), sweet potato (½ cup)'],
+      ['Snack 3','Protein bar']
+    ]},
+    { day:'Day 6', meals:[
+      ['Breakfast','Scrambled eggs (same as Day 2)'],
+      ['Snack 1','Recovery drink + celery sticks'],
+      ['Lunch','Grilled chicken (6 oz), broccoli (1 cup), quinoa (½ cup), salsa'],
+      ['Snack 2','Cottage cheese (½ cup) + walnuts (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), asparagus (1 cup), pineapple (½ cup)'],
+      ['Snack 3','Protein shake']
+    ]},
+    { day:'Day 7 (Rest/Active Recovery)', meals:[
+      ['Breakfast','Overnight oats (same as Day 1)'],
+      ['Snack 1','Whey shake + string cheese'],
+      ['Lunch','Chicken breast (6 oz), roasted Brussels sprouts (1 cup), brown rice (½ cup), mustard'],
+      ['Snack 2','Greek yogurt (½ cup) + almonds (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), spinach (1 cup), apple (½)'],
+      ['Snack 3','Protein bar']
+    ]}
+  ],
+  // Phase II — Energy Booster: balanced macros, more carbs around workouts (protein×6, carb×3)
+  2: [
+    { day:'Day 1', meals:[
+      ['Breakfast','Oatmeal (1 cup cooked) with 1 scoop whey and blueberries (½ cup)'],
+      ['Snack 1','Recovery drink + Greek yogurt (½ cup)'],
+      ['Lunch','Grilled chicken (6 oz), brown rice (½ cup), broccoli (1 cup), salsa'],
+      ['Snack 2','Protein bar + almonds (1 oz)'],
+      ['Dinner','Turkey breast (6 oz), sweet potato (½ cup), asparagus (1 cup), mustard'],
+      ['Snack 3','Protein shake']
+    ]},
+    { day:'Day 2', meals:[
+      ['Breakfast','Whole grain toast (2 slices), scrambled eggs (3 whites + 1 whole), avocado (¼ medium)'],
+      ['Snack 1','Whey shake + string cheese'],
+      ['Lunch','Turkey breast (6 oz), quinoa (½ cup), green beans (1 cup), mustard'],
+      ['Snack 2','Greek yogurt (½ cup) + walnuts (1 oz)'],
+      ['Dinner','Chicken breast (6 oz), brown rice (½ cup), Brussels sprouts (1 cup)'],
+      ['Snack 3','Recovery drink']
+    ]},
+    { day:'Day 3', meals:[
+      ['Breakfast','Overnight oats (same as Day 1)'],
+      ['Snack 1','Protein bar + cottage cheese (½ cup)'],
+      ['Lunch','Grilled chicken salad (6 oz chicken, mixed greens, brown rice, balsamic vinegar)'],
+      ['Snack 2','Whey shake + almonds (1 oz)'],
+      ['Dinner','Salmon (6 oz), sweet potato (½ cup), broccoli (1 cup)'],
+      ['Snack 3','Protein shake']
+    ]},
+    { day:'Day 4', meals:[
+      ['Breakfast','Greek yogurt parfait (1 cup yogurt, ½ cup berries, 1 tbsp oats)'],
+      ['Snack 1','Recovery drink + walnuts (1 oz)'],
+      ['Lunch','Chicken stir-fry (6 oz chicken, bell peppers, brown rice, soy sauce)'],
+      ['Snack 2','Protein bar'],
+      ['Dinner','Turkey breast (6 oz), whole grain pasta (½ cup), zucchini (1 cup)'],
+      ['Snack 3','Whey shake']
+    ]},
+    { day:'Day 5', meals:[
+      ['Breakfast','Whole grain waffles (2) with peanut butter (1 tbsp) and banana (½)'],
+      ['Snack 1','Whey shake + string cheese'],
+      ['Lunch','Chicken burger (6 oz), whole grain bun, asparagus (1 cup)'],
+      ['Snack 2','Greek yogurt (½ cup)'],
+      ['Dinner','Lean beef (6 oz), quinoa (½ cup), spinach (1 cup), salsa'],
+      ['Snack 3','Protein bar']
+    ]},
+    { day:'Day 6', meals:[
+      ['Breakfast','Oatmeal (1 cup) with whey protein and almond butter (1 tbsp)'],
+      ['Snack 1','Recovery drink'],
+      ['Lunch','Grilled chicken (6 oz), brown rice (½ cup), broccoli (1 cup)'],
+      ['Snack 2','Cottage cheese (½ cup) + almonds (1 oz)'],
+      ['Dinner','Turkey breast (6 oz), sweet potato (½ cup), green beans (1 cup)'],
+      ['Snack 3','Whey shake']
+    ]},
+    { day:'Day 7 (Rest/Active Recovery)', meals:[
+      ['Breakfast','Overnight oats (same as Day 3)'],
+      ['Snack 1','Greek yogurt (½ cup) + berries (½ cup)'],
+      ['Lunch','Chicken breast (6 oz), quinoa (½ cup), mixed greens, balsamic vinegar'],
+      ['Snack 2','Protein bar'],
+      ['Dinner','Salmon (6 oz), brown rice (½ cup), asparagus (1 cup)'],
+      ['Snack 3','Recovery drink']
+    ]}
+  ],
+  // Phase III — Endurance Maximizer: carb-heavy, lower protein, more fruit (protein×3, carb×4, fruit×3)
+  3: [
+    { day:'Day 1', meals:[
+      ['Breakfast','Oatmeal (1 cup cooked) with banana and berries (½ cup)'],
+      ['Snack 1','Recovery drink + orange (1 large)'],
+      ['Lunch','Grilled chicken (3 oz), brown rice (1 cup), broccoli + carrots, salsa'],
+      ['Snack 2','Protein bar + apple (1 medium)'],
+      ['Dinner','Salmon (3 oz), sweet potato (1 medium), asparagus (1 cup), pineapple (¾ cup)'],
+      ['Snack 3','Whey shake + grapes (1 cup)']
+    ]},
+    { day:'Day 2', meals:[
+      ['Breakfast','Whole grain pancakes (2), mixed berries (1 cup)'],
+      ['Snack 1','Greek yogurt (¾ cup) + peach (1 medium)'],
+      ['Lunch','Turkey breast (3 oz), quinoa (1 cup), green beans (1 cup), mustard'],
+      ['Snack 2','Recovery drink + melon (1.5 cups)'],
+      ['Dinner','Lean beef (3 oz), whole grain pasta (1 cup), Brussels sprouts (1 cup)'],
+      ['Snack 3','Protein bar + mango (½ cup)']
+    ]},
+    { day:'Day 3', meals:[
+      ['Breakfast','Overnight oats (1 cup oats, ½ scoop whey, banana)'],
+      ['Snack 1','Recovery drink + apple (1 medium)'],
+      ['Lunch','Chicken breast (3 oz), brown rice (1 cup), mixed greens, balsamic vinegar, orange slices'],
+      ['Snack 2','Protein bar'],
+      ['Dinner','Shrimp (4 oz), sweet potato (1 medium), broccoli (1 cup), pineapple (¾ cup)'],
+      ['Snack 3','Whey shake + berries (1 cup)']
+    ]},
+    { day:'Day 4', meals:[
+      ['Breakfast','Whole grain toast (2 slices) with almond butter and banana'],
+      ['Snack 1','Greek yogurt (¾ cup) + grapes (1 cup)'],
+      ['Lunch','Turkey burger (3 oz), whole grain bun, roasted zucchini, salsa'],
+      ['Snack 2','Recovery drink + melon (1.5 cups)'],
+      ['Dinner','Chicken breast (3 oz), quinoa (1 cup), asparagus (1 cup), mango (½ cup)'],
+      ['Snack 3','Protein bar']
+    ]},
+    { day:'Day 5', meals:[
+      ['Breakfast','Oatmeal (1 cup) with berries (1 cup)'],
+      ['Snack 1','Recovery drink + orange (1 large)'],
+      ['Lunch','Grilled chicken (3 oz), brown rice (1 cup), green beans (1 cup), mustard'],
+      ['Snack 2','Whey shake + apple (1 medium)'],
+      ['Dinner','Salmon (3 oz), sweet potato (1 medium), spinach (1 cup), pineapple (¾ cup)'],
+      ['Snack 3','Protein bar']
+    ]},
+    { day:'Day 6', meals:[
+      ['Breakfast','Whole grain pancakes (same as Day 2)'],
+      ['Snack 1','Greek yogurt (¾ cup) + peach (1 medium)'],
+      ['Lunch','Turkey breast (3 oz), quinoa (1 cup), broccoli (1 cup), salsa'],
+      ['Snack 2','Recovery drink + grapes (1 cup)'],
+      ['Dinner','Lean beef (3 oz), whole grain pasta (1 cup), Brussels sprouts (1 cup)'],
+      ['Snack 3','Whey shake + melon (1.5 cups)']
+    ]},
+    { day:'Day 7 (Rest/Active Recovery)', meals:[
+      ['Breakfast','Overnight oats (same as Day 3)'],
+      ['Snack 1','Recovery drink + apple (1 medium)'],
+      ['Lunch','Chicken breast (3 oz), brown rice (1 cup), mixed greens, balsamic vinegar'],
+      ['Snack 2','Protein bar + orange (1 large)'],
+      ['Dinner','Salmon (3 oz), sweet potato (1 medium), asparagus (1 cup), mango (½ cup)'],
+      ['Snack 3','Whey shake + berries (1 cup)']
+    ]}
+  ]
+};
 
 const COACH_TIPS = {
   1: [
@@ -1152,13 +1273,12 @@ function formatDate(d) {
 function setPhase(p) {
   state.phase = p;
   saveState();
-  document.querySelectorAll('.phase-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', i+1 === p);
-  });
+  document.getElementById('phase-selector').value = p;
   const names = { 1:'Fat Shredder · Level II', 2:'Energy Booster · Level II', 3:'Endurance Maximizer · Level II' };
   document.getElementById('phase-name-label').textContent = names[p];
   renderTodayTab();
   updateCoachTips();
+  renderMealPlan();
 }
 
 // ========== TAB SWITCHING ==========
@@ -1374,7 +1494,9 @@ function renderFoodGuide() {
 function renderMealPlan() {
   const list = document.getElementById('meal-plan-list');
   list.innerHTML = '';
-  MEAL_PLANS.forEach(day => {
+  const phaseNames = { 1:'Phase I', 2:'Phase II', 3:'Phase III' };
+  document.getElementById('meal-plan-title').textContent = '7-Day Meal Plan · ' + (phaseNames[state.phase] || 'Phase I');
+  (MEAL_PLANS[state.phase] || MEAL_PLANS[1]).forEach(day => {
     const card = document.createElement('div');
     card.className = 'day-plan';
     card.innerHTML = `<h4>${day.day}</h4>` + day.meals.map(([type, desc]) =>
@@ -1627,8 +1749,7 @@ function updateRMRDisplay(w) {
 function updateHeader() {
   const names = { 1:'Fat Shredder · Level II', 2:'Energy Booster · Level II', 3:'Endurance Maximizer · Level II' };
   document.getElementById('phase-name-label').textContent = names[state.phase];
-  const btns = document.querySelectorAll('.phase-btn');
-  btns.forEach((btn, i) => btn.classList.toggle('active', i+1 === state.phase));
+  document.getElementById('phase-selector').value = state.phase;
   updateDateNav();
 }
 
@@ -1685,7 +1806,7 @@ function updateSyncStatus() {
 function buildSyncPayload() {
   const phaseNames = { 1:'Fat Shredder', 2:'Energy Booster', 3:'Endurance Maximizer' };
 
-  // Enrich tracking with phase name + calculated fields
+  // Enrich every tracked date (not just today) with phase name + calculated fields
   const enriched = {};
   Object.entries(state.tracking).forEach(([date, d]) => {
     let cal = 0;
@@ -1702,20 +1823,6 @@ function buildSyncPayload() {
     };
   });
 
-  return {
-    action: 'sync',
-    tracking: enriched,
-    bfLog: state.bfLog,
-    settings: {
-      phase: state.phase,
-      bfGoal: state.bfGoal,
-      bodyWeight: state.bodyWeight,
-      level: 'II'
-    }
-  };
-}
-
-function buildSyncPayload() {
   // Build caffeine log: array of {date, totalMg, entries}
   const cafLog = Object.entries(state.caffeineLog).map(([date, entries]) => ({
     date,
@@ -1725,7 +1832,7 @@ function buildSyncPayload() {
 
   return {
     action: 'sync',
-    tracking: state.tracking,          // all dates, not just today
+    tracking: enriched,          // all dates, not just today
     bfLog: state.bfLog.slice(-30),
     cafLog,
     settings: {
@@ -2409,8 +2516,17 @@ function clearAuditLog() {
   renderAuditLog();
 }
 
+// Keep the scrollable content area below the header even when the header
+// wraps to a second line on narrow screens (dirty sync label + phase select).
+function syncHeaderHeight() {
+  const header = document.getElementById('header');
+  document.getElementById('app').style.top = header.offsetHeight + 'px';
+}
+new ResizeObserver(syncHeaderHeight).observe(document.getElementById('header'));
+
 // Run
 init();
+syncHeaderHeight();
 </script>
 </body>
 </html>
