@@ -605,12 +605,18 @@
             oninput="autoSaveScriptUrl(this.value)">
           <span id="url-saved-badge" style="display:none;font-size:11px;color:var(--green);white-space:nowrap;font-weight:700;">✅ Saved</span>
         </div>
-        <button class="btn-primary" onclick="saveScriptUrl()" style="margin-bottom:8px;">💾 Save URL</button>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button class="btn-primary" onclick="saveScriptUrl()" style="flex:1;margin-bottom:0;">💾 Save URL</button>
+          <button class="btn-secondary" onclick="copyBookmarkLink()" style="flex:1;margin-top:0;font-size:12px;" title="Generates a link with the URL baked in — bookmark it on your phone so the URL is always pre-loaded">🔗 Copy phone link</button>
+        </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-secondary" onclick="syncToSheet()" style="flex:1;margin-top:0;" id="sync-btn">☁️ Sync to Sheet</button>
           <button class="btn-secondary" onclick="loadFromSheet()" style="flex:1;margin-top:0;" id="load-btn">📥 Load from Sheet</button>
         </div>
         <button class="btn-secondary" onclick="testGasUrl()" style="margin-top:8px;font-size:12px;color:var(--blue);border-color:var(--blue);">🔍 Test URL in browser tab</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:6px;">
+          📱 <b>Using on phone?</b> Tap <b>Copy phone link</b> above, then open that link in your phone's browser and bookmark it (or Add to Home Screen). The URL will be pre-loaded every time you open it from that bookmark.
+        </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;" id="sync-status">
           <span id="sync-status-text">No script URL saved yet. See setup instructions in <b>P90X_Apps_Script.gs</b>.</span>
         </div>
@@ -1787,6 +1793,15 @@ function saveScriptUrl() {
   showToast('✅ Script URL saved!');
 }
 
+function copyBookmarkLink() {
+  if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
+  const link = location.origin + location.pathname + '?url=' + encodeURIComponent(state.scriptUrl);
+  navigator.clipboard.writeText(link).then(
+    () => showToast('✅ Phone link copied! Paste in phone browser & bookmark it.', 3500),
+    () => { prompt('Copy this link and bookmark it on your phone:', link); }
+  );
+}
+
 function updateSyncStatus() {
   const el = document.getElementById('sync-status-text');
   if (!el) return;
@@ -1925,18 +1940,28 @@ async function loadFromSheet() {
       json.bfLog.forEach(e => { if (!existing.has(e.date)) state.bfLog.push(e); });
       state.bfLog.sort((a,b) => a.date.localeCompare(b.date));
     }
+    // Merge caffeine log (sheet entries win for dates not already in local log)
+    if (json.cafLog && typeof json.cafLog === 'object') {
+      Object.entries(json.cafLog).forEach(([date, entry]) => {
+        if (!state.caffeineLog[date] || state.caffeineLog[date].length === 0) {
+          state.caffeineLog[date] = entry.entries || [];
+        }
+      });
+    }
     // Restore settings
     if (json.settings) {
-      if (json.settings.bfGoal)     state.bfGoal     = parseFloat(json.settings.bfGoal);
-      if (json.settings.bodyWeight) state.bodyWeight  = parseFloat(json.settings.bodyWeight);
-      if (json.settings.phase)      state.phase       = parseInt(json.settings.phase);
+      if (json.settings.bfGoal)       state.bfGoal       = parseFloat(json.settings.bfGoal);
+      if (json.settings.bodyWeight)   state.bodyWeight    = parseFloat(json.settings.bodyWeight);
+      if (json.settings.phase)        state.phase         = parseInt(json.settings.phase);
+      if (json.settings.caffeineGoal) state.caffeineGoal  = parseInt(json.settings.caffeineGoal);
     }
 
     state.lastSync = new Date().toISOString();
     saveState();
     updateSyncStatus();
     renderTodayTab();
-    addAuditEntry('LOAD ←', 'ok', `Got ${Object.keys(json.tracking||{}).length} tracking days, ${(json.bfLog||[]).length} BF entries`);
+    renderHistoryTab();
+    addAuditEntry('LOAD ←', 'ok', `Got ${Object.keys(json.tracking||{}).length} tracking days, ${(json.bfLog||[]).length} BF entries, ${Object.keys(json.cafLog||{}).length} caffeine days`);
     showToast('✅ Data loaded from Google Sheets!', 2500);
   } catch (err) {
     addAuditEntry('LOAD ←', 'err', err.message + ' | URL: ' + (state.scriptUrl || 'not set'));
@@ -1949,6 +1974,13 @@ async function loadFromSheet() {
 
 // ========== INIT ==========
 function init() {
+  // Bootstrap script URL from ?url= query param (for phone bookmark links)
+  const urlParam = new URLSearchParams(location.search).get('url');
+  if (urlParam && urlParam.startsWith('https://') && !state.scriptUrl) {
+    state.scriptUrl = urlParam;
+    localStorage.setItem('p90x_script_url', state.scriptUrl);
+  }
+
   updateHeader();
   renderTodayTab();
   renderFoodGuide();
