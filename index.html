@@ -1079,7 +1079,7 @@ const REMINDERS = [
 // ========== STATE ==========
 let state = {
   phase: parseInt(localStorage.getItem('p90x_phase') || '1'),
-  today: new Date().toISOString().split('T')[0],
+  today: localDateStr(new Date()),
   tracking: JSON.parse(localStorage.getItem('p90x_tracking') || '{}'),
   bfLog: JSON.parse(localStorage.getItem('p90x_bf') || '[]'),
   bfGoal: parseFloat(localStorage.getItem('p90x_bf_goal') || '') || null,
@@ -1104,7 +1104,7 @@ let histChartInstance = null;
 let histChartMode = 'food';
 
 // View date (not persisted — always resets to today on load)
-let viewDate = new Date().toISOString().split('T')[0];
+let viewDate = localDateStr(new Date());
 
 // ========== HELPERS ==========
 let syncDirty = false;
@@ -1184,7 +1184,17 @@ function saveState() {
   updateHdrSync();
 }
 
-function getToday() { return new Date().toISOString().split('T')[0]; }
+// Local-timezone date string (YYYY-MM-DD). Using toISOString() here would convert
+// to UTC first, rolling the "day" over at UTC midnight — e.g. 6-7pm in Mountain Time
+// instead of local midnight. Always derive date keys from local Y/M/D fields instead.
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getToday() { return localDateStr(new Date()); }
 
 function getTodayTracking() {
   if (!state.tracking[viewDate]) {
@@ -1218,7 +1228,7 @@ function shiftViewDate(delta) {
   const today = getToday();
   const d = new Date(viewDate + 'T12:00:00');
   d.setDate(d.getDate() + delta);
-  const newDate = d.toISOString().split('T')[0];
+  const newDate = localDateStr(d);
   if (newDate > today) return;
   viewDate = newDate;
   updateDateNav();
@@ -1407,9 +1417,9 @@ function renderStreak() {
   const today = getToday();
 
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
+    const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const isToday = ds === today;
     const tracking = state.tracking[ds];
     let done = false;
@@ -1442,7 +1452,7 @@ function calcStreakCount() {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const tracking = state.tracking[ds];
     const hasTracking = tracking && Object.keys(tracking).some(k => k !== 'water' && (tracking[k] || 0) > 0);
     if (hasTracking) { count++; } else { break; }
@@ -1980,6 +1990,12 @@ function init() {
     state.scriptUrl = urlParam;
     localStorage.setItem('p90x_script_url', state.scriptUrl);
   }
+  if (urlParam) {
+    const params = new URLSearchParams(location.search);
+    params.delete('url');
+    const rest = params.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+  }
 
   updateHeader();
   renderTodayTab();
@@ -2356,7 +2372,7 @@ function renderGoalProgress() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const log = state.caffeineLog[ds];
     if (log && log.length) { cafSum += log.reduce((s,e) => s+e.mg, 0); cafDays++; }
   }
@@ -2377,7 +2393,7 @@ function renderGoalProgress() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     if (state.tracking[ds]) { foodSum += calcCompletionForDate(state.tracking[ds]).pct; foodDays++; }
   }
   const foodAvg = foodDays ? Math.round(foodSum / foodDays) : null;
@@ -2422,7 +2438,7 @@ function renderHistChart() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   const labels = days.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }));
 
@@ -2469,7 +2485,7 @@ function renderHistTable() {
   for (let i = 0; i < 30; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   const tracked = days.filter(d => state.tracking[d] || (state.caffeineLog[d] && state.caffeineLog[d].length));
   const wrap = document.getElementById('hist-table-wrap');
