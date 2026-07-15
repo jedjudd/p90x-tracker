@@ -611,6 +611,7 @@
           <button class="btn-secondary" onclick="loadFromSheet()" style="flex:1;margin-top:0;" id="load-btn">📥 Load from Sheet</button>
         </div>
         <button class="btn-secondary" onclick="testGasUrl()" style="margin-top:8px;font-size:12px;color:var(--blue);border-color:var(--blue);">🔍 Test URL in browser tab</button>
+        <button class="btn-secondary" onclick="copyInstallLink()" style="margin-top:8px;font-size:12px;">🔗 Copy install link (carries URL through reinstall)</button>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;" id="sync-status">
           <span id="sync-status-text">No script URL saved yet. See setup instructions in <b>P90X_Apps_Script.gs</b>.</span>
         </div>
@@ -1073,7 +1074,7 @@ const REMINDERS = [
 // ========== STATE ==========
 let state = {
   phase: parseInt(localStorage.getItem('p90x_phase') || '1'),
-  today: new Date().toISOString().split('T')[0],
+  today: localDateStr(new Date()),
   tracking: JSON.parse(localStorage.getItem('p90x_tracking') || '{}'),
   bfLog: JSON.parse(localStorage.getItem('p90x_bf') || '[]'),
   bfGoal: parseFloat(localStorage.getItem('p90x_bf_goal') || '') || null,
@@ -1098,7 +1099,7 @@ let histChartInstance = null;
 let histChartMode = 'food';
 
 // View date (not persisted — always resets to today on load)
-let viewDate = new Date().toISOString().split('T')[0];
+let viewDate = localDateStr(new Date());
 
 // ========== HELPERS ==========
 let syncDirty = false;
@@ -1178,7 +1179,17 @@ function saveState() {
   updateHdrSync();
 }
 
-function getToday() { return new Date().toISOString().split('T')[0]; }
+// Local-timezone date string (YYYY-MM-DD). Using toISOString() here would convert
+// to UTC first, rolling the "day" over at UTC midnight — e.g. 6-7pm in Mountain Time
+// instead of local midnight. Always derive date keys from local Y/M/D fields instead.
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getToday() { return localDateStr(new Date()); }
 
 function getTodayTracking() {
   if (!state.tracking[viewDate]) {
@@ -1212,7 +1223,7 @@ function shiftViewDate(delta) {
   const today = getToday();
   const d = new Date(viewDate + 'T12:00:00');
   d.setDate(d.getDate() + delta);
-  const newDate = d.toISOString().split('T')[0];
+  const newDate = localDateStr(d);
   if (newDate > today) return;
   viewDate = newDate;
   updateDateNav();
@@ -1401,9 +1412,9 @@ function renderStreak() {
   const today = getToday();
 
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
+    const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const isToday = ds === today;
     const tracking = state.tracking[ds];
     let done = false;
@@ -1436,7 +1447,7 @@ function calcStreakCount() {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const tracking = state.tracking[ds];
     const hasTracking = tracking && Object.keys(tracking).some(k => k !== 'water' && (tracking[k] || 0) > 0);
     if (hasTracking) { count++; } else { break; }
@@ -1873,6 +1884,19 @@ async function syncToSheet() {
   }
 }
 
+function copyInstallLink() {
+  if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
+  const link = location.origin + location.pathname + '?scriptUrl=' + encodeURIComponent(state.scriptUrl);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(
+      () => showToast('✅ Link copied — open it once after reinstalling to restore your Script URL', 3500),
+      () => showToast('⚠️ Copy failed — copy manually: ' + link, 4000)
+    );
+  } else {
+    showToast('⚠️ Clipboard unavailable — copy manually: ' + link, 4000);
+  }
+}
+
 function testGasUrl() {
   if (!state.scriptUrl) { showToast('⚠️ Save your Script URL first'); return; }
   window.open(state.scriptUrl + '?callback=test', '_blank');
@@ -1947,8 +1971,24 @@ async function loadFromSheet() {
   }
 }
 
+// Pick up ?scriptUrl=<Apps Script Web App URL> from the page URL (e.g. a bookmarked
+// install link) and persist it to localStorage, since there was previously no code
+// path that read it — pasting it into the address bar never actually saved anything.
+function absorbScriptUrlFromLocation() {
+  const params = new URLSearchParams(location.search);
+  const url = (params.get('scriptUrl') || '').trim();
+  if (!url.startsWith('https://')) return;
+  state.scriptUrl = url;
+  localStorage.setItem('p90x_script_url', state.scriptUrl);
+  params.delete('scriptUrl');
+  const rest = params.toString();
+  history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+  showToast('✅ Script URL saved from link');
+}
+
 // ========== INIT ==========
 function init() {
+  absorbScriptUrlFromLocation();
   updateHeader();
   renderTodayTab();
   renderFoodGuide();
@@ -2324,7 +2364,7 @@ function renderGoalProgress() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const log = state.caffeineLog[ds];
     if (log && log.length) { cafSum += log.reduce((s,e) => s+e.mg, 0); cafDays++; }
   }
@@ -2345,7 +2385,7 @@ function renderGoalProgress() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     if (state.tracking[ds]) { foodSum += calcCompletionForDate(state.tracking[ds]).pct; foodDays++; }
   }
   const foodAvg = foodDays ? Math.round(foodSum / foodDays) : null;
@@ -2390,7 +2430,7 @@ function renderHistChart() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   const labels = days.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }));
 
@@ -2437,7 +2477,7 @@ function renderHistTable() {
   for (let i = 0; i < 30; i++) {
     const d = new Date(today + 'T12:00:00');
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   const tracked = days.filter(d => state.tracking[d] || (state.caffeineLog[d] && state.caffeineLog[d].length));
   const wrap = document.getElementById('hist-table-wrap');
